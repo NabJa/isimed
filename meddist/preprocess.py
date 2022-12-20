@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 from typing import List, Optional, Tuple
 
@@ -22,8 +23,18 @@ def get_shapes_and_spacings(data, image_key="image") -> Tuple[List, List]:
 
 
 def get_mean_image(loader, total, image_key="image", output_dir: Optional[Path] = None):
-    mean_image = None
 
+    # Load if mean image already exists
+    if output_dir is not None:
+        out_file_name = output_dir / "mean_image.th"
+        if out_file_name.is_file():
+            with open(out_file_name, mode="rb") as file:
+                logging.info("Loading existing mean image.")
+                return torch.load(file)
+
+    # Generate mean image
+    logging.info("Generating mean image")
+    mean_image = None
     for sample in tqdm(loader, total=total, desc="get_mean_image"):
         if mean_image is None:
             mean_image = sample[image_key] * (1 / total)
@@ -32,6 +43,7 @@ def get_mean_image(loader, total, image_key="image", output_dir: Optional[Path] 
 
     mean_image = mean_image[0]  # Remove batch dimension
 
+    # Save mean image
     if output_dir is not None:
         with open(output_dir / "mean_image.th", mode="wb") as file:
             torch.save(mean_image, file)
@@ -39,15 +51,24 @@ def get_mean_image(loader, total, image_key="image", output_dir: Optional[Path] 
     return mean_image
 
 
-def main(data, output_dir: Path, image_key="image", num_workers=0):
+def preprocess(data, output_dir: Path, image_key="image", num_workers=0):
 
     # Prepare output dir
     processed_dir = output_dir / "processed"
     processed_dir.mkdir(parents=True, exist_ok=True)
 
-    # Prepare all images to median shape
+    logging.basicConfig(
+        filename=str(output_dir / "processing.log"),
+        filemode="w",
+        format="%(name)s - %(levelname)s - %(message)s",
+        level=logging.DEBUG,
+        force=True,
+    )
+
+    logging.info("Getting all shapes and spacings...")
     shapes, _ = get_shapes_and_spacings(data, image_key)
     median_shape = list(np.median(shapes, axis=0).astype(int))
+    logging.info(f"Median shape is {median_shape}")
 
     load_to_median_size = tfm.Compose(
         [
@@ -90,4 +111,4 @@ if __name__ == "__main__":
     )
     data = FDG_PET_CT_Dataset(data_path)
 
-    main(data, output_dir, image_key="ct", num_workers=8)
+    preprocess(data, output_dir, image_key="ct", num_workers=8)
