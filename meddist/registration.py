@@ -7,9 +7,21 @@ from monai.transforms import Transform
 from torch.utils.data import DataLoader as dl
 
 
-def run_rigid_transformation(fixed_image: al.Image, moving_image: al.Image):
+def run_rigid_transformation(
+    fixed_image: al.Image, moving_image: al.Image, device=None, verbose=False
+):
+
+    # Setup device
+    if device is None:
+        device = (
+            torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+        )
+
+    fixed_image = fixed_image.to(device=device)
+    moving_image = moving_image.to(device=device)
+
     # create pairwise registration object
-    registration = al.PairwiseRegistration(verbose=False)
+    registration = al.PairwiseRegistration(verbose=verbose)
 
     # choose the affine transformation model
     transformation = al.transformation.pairwise.RigidTransformation(
@@ -42,14 +54,24 @@ def run_rigid_transformation(fixed_image: al.Image, moving_image: al.Image):
 
 class RigidTransformd(Transform):
     def __init__(self, fixed_image: torch.Tensor, image_key="image"):
-        self.fixed_image = al.Image(fixed_image[0]) # Remove channel dim
+        self.fixed_image = self._parse_to_3d(fixed_image)
         self.image_key = image_key
 
     def __call__(self, data: MetaTensor):
-        moving_image = al.Image(data[self.image_key][0]) # Remove channel dim
+        moving_image = self._parse_to_3d(data[self.image_key])
 
         warped_image, _ = run_rigid_transformation(self.fixed_image, moving_image)
 
         data[self.image_key] = warped_image
 
         return data
+
+    def _parse_to_3d(self, image):
+        if len(image.shape) == 5:
+            return al.Image(image[0, 0, ...])
+        elif len(image.shape) == 4:
+            return al.Image(image[0, ...])
+        elif len(image.shape) == 3:
+            return al.Image(image)
+        else:
+            raise ValueError(f"Unsopported fixed image shape {image.shape}")

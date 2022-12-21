@@ -7,6 +7,7 @@ import nibabel as nib
 import numpy as np
 import torch
 from monai.data import DataLoader, Dataset
+from registration import RigidTransformd
 from tqdm import tqdm
 from wbpetct.data import FDG_PET_CT_Dataset
 
@@ -97,7 +98,38 @@ def preprocess(data, output_dir: Path, image_key="image", num_workers=0):
         loader, total=len(data), image_key=image_key, output_dir=output_dir
     )
 
+    # # All images generated???
+    # TODO handle multiple images per patient
+    # n_saved_images = len(list(processed_dir.glob("*.nii.gz")))
+    # images_missing = n_saved_images != len(data)
+
+    # logging.info(f"Images are missing: {images_missing}. Saved images: {n_saved_images}. Expected: {len(data)}")
+    # if images_missing:
+    #     logging.info("Regenrate all images")
+    #     get_mean_image(loader, total=len(data), image_key=image_key)
+
     # Rigid registration
+    registration_dir = output_dir / "registered"
+    registration_dir.mkdir(exist_ok=True)
+
+    data = [{"image": str(p)} for p in processed_dir.glob("*.nii.gz")]
+    rigid_transformation = tfm.Compose(
+        [tfm.LoadImaged(keys="image"), RigidTransformd(fixed_image=mean_image)]
+    )
+    dataset = Dataset(data, transform=rigid_transformation)
+
+    saver = tfm.SaveImaged(
+        keys="image",
+        output_dir=registration_dir,
+        resample=False,
+        print_log=False,
+        separate_folder=False,
+        output_postfix="",
+    )
+
+    for transformed_image in tqdm(dataset, desc="Rigistration"):
+        transformed_image["image"] = transformed_image["image"].numpy()
+        saver(transformed_image)
 
     # Crop
     # Dataset Summary
