@@ -11,8 +11,10 @@ from registration import RigidTransformd
 from tqdm import tqdm
 from wbpetct.data import FDG_PET_CT_Dataset
 
+torch.multiprocessing.set_sharing_strategy("file_system")
 
-def get_shapes_and_spacings(data, image_key="image") -> Tuple[List, List]:
+
+def get_shapes_and_spacings(data, image_key="image") -> Tuple[np.ndarray, np.ndarray]:
     shapes, spacings = [], []
 
     for sample in tqdm(data, desc="get_shapes_and_spacings"):
@@ -20,7 +22,7 @@ def get_shapes_and_spacings(data, image_key="image") -> Tuple[List, List]:
         shapes.append(img.shape)
         spacings.append(img.affine.diagonal()[:3])
 
-    return shapes, spacings
+    return np.array(shapes), np.array(spacings)
 
 
 def get_mean_image(loader, total, image_key="image", output_dir: Optional[Path] = None):
@@ -68,7 +70,17 @@ def preprocess(data, output_dir: Path, image_key="image", num_workers=0):
 
     logging.info("Getting all shapes and spacings...")
     shapes, _ = get_shapes_and_spacings(data, image_key)
-    median_shape = list(np.median(shapes, axis=0).astype(int))
+
+    MAX_DEPTH = 400
+    samples_with_accaptable_shape = shapes[:, 2] <= MAX_DEPTH
+    data = data[samples_with_accaptable_shape]
+    logging.info(
+        f"Filter samples with unsuitable size. Reduced from {shapes.shape[0]} to {len(data)} samples."
+    )
+
+    median_shape = list(
+        np.median(shapes[samples_with_accaptable_shape], axis=0).astype(int)
+    )
     logging.info(f"Median shape is {median_shape}")
 
     load_to_median_size = tfm.Compose(
@@ -139,7 +151,7 @@ def preprocess(data, output_dir: Path, image_key="image", num_workers=0):
 if __name__ == "__main__":
     data_path = "/sc-scratch/sc-scratch-gbm-radiomics/tcia/manifest-1654187277763/nifti/FDG-PET-CT-Lesions"
     output_dir = Path(
-        "/sc-scratch/sc-scratch-gbm-radiomics/tcia/manifest-1654187277763/nifti/FDG-PET-CT-Lesions-data"
+        "/sc-scratch/sc-scratch-gbm-radiomics/tcia/manifest-1654187277763/nifti/FDG-PET-CT-Lesions-data2"
     )
     data = FDG_PET_CT_Dataset(data_path)
 
