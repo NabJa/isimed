@@ -1,7 +1,6 @@
 import torch
 from meddist.data import get_dataloaders
 from meddist.dist import get_bbox_centers, get_cropped_bboxes, pairwise_comparisons
-from meddist.model import ContrastiveDistanceDenseNet
 from monai.networks.nets import DenseNet
 from torch import nn
 
