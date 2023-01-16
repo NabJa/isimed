@@ -12,6 +12,7 @@ def train_distance_model(model, optimizer, loss_fn, dataloader, num_epochs):
         for epoch in range(num_epochs):
             for iteration, batch in enumerate(dataloader):
 
+                # Prepare GT
                 bboxes = get_cropped_bboxes(batch["image"], "RandSpatialCropSamples")
                 centers = get_bbox_centers(bboxes)
 
@@ -19,16 +20,18 @@ def train_distance_model(model, optimizer, loss_fn, dataloader, num_epochs):
                     torch.tensor(centers), torch.tensor(centers), p=2.0
                 ).float()
 
-                # Forward pass
+                # Prepare forward pass
+                optimizer.zero_grad()
                 image = batch["image"].to("cuda")
-                embeddings = model(image).cpu()
 
-                pred_dist_mat = torch.cdist(embeddings, embeddings, p=2)
+                with torch.autocast(device_type="cuda"):
+                    # Forward pass
+                    embeddings = model(image).cpu()
 
+                pred_dist_mat = torch.cdist(embeddings.float(), embeddings.float(), p=2)
                 loss = loss_fn(pred_dist_mat, gt_dist_mat)
 
                 # Backward pass and optimization
-                optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
 
