@@ -10,7 +10,7 @@ output_path:
 
 epochs:
   desc: Number of epochs to train over
-  value: 10
+  value: 50
 
 number_of_crops:
   desc: Crops sampled per patient. This is the same as batch size in this training logic.
@@ -23,4 +23,3 @@ lr:
 embedding_size:
   desc: Size of the feature vector of the trained model.
   value: 512
-  
