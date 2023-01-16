@@ -7,11 +7,16 @@ from monai.networks.nets import DenseNet
 from torch import nn
 
 
-def run_epoch(model, loss_fn, dataloader, optimizer=None):
+def get_max_distance(dist_mat1: torch.Tensor, dist_mat2: torch.Tensor) -> float:
+    return torch.max(torch.abs(dist_mat1 - dist_mat2)).item()
+
+
+def run_epoch(model, loss_fn, dataloader, optimizer=None) -> None:
 
     mode = "valid" if optimizer is None else "train"
 
     running_loss = 0.0
+    running_max_dist = 0.0
 
     for iteration, batch in enumerate(dataloader):
 
@@ -42,18 +47,26 @@ def run_epoch(model, loss_fn, dataloader, optimizer=None):
             loss.backward()
             optimizer.step()
 
-        if iteration == 10:
-            break
-
         # Log
-        running_loss += loss.item()
+        max_distance = get_max_distance(pred_dist_mat, gt_dist_mat)
+
         if mode == "train":
-            wandb.log({f"Loss/{mode}": loss.item()})
+            wandb.log(
+                {f"{mode}/Loss": loss.item(), f"{mode}/MaxDistance": max_distance}
+            )
+
+        running_loss += loss.item()
+        running_max_dist = (
+            running_max_dist if running_max_dist > max_distance else max_distance
+        )
 
     # Free up all memory
     torch.cuda.empty_cache()
 
-    return running_loss / iteration
+    if mode == "valid":
+        wandb.log(
+            {f"{mode}/Loss": loss.item(), f"{mode}/MaxDistance": running_max_dist}
+        )
 
 
 def run_training():
@@ -74,12 +87,10 @@ def run_training():
 
     # Start training
     for _ in range(wandb.config.epochs):
-        _ = run_epoch(model, loss_fn, train_loader, optimizer)
+        run_epoch(model, loss_fn, train_loader, optimizer)
 
         with torch.no_grad():
-            valid_loss = run_epoch(model, loss_fn, valid_loader)
-
-        wandb.log({"Loss/valid": valid_loss})
+            run_epoch(model, loss_fn, valid_loader)
 
 
 if __name__ == "__main__":
