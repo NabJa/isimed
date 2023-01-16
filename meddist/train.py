@@ -24,11 +24,13 @@ def train_distance_model(model, optimizer, loss_fn, dataloader, num_epochs):
                 optimizer.zero_grad()
                 image = batch["image"].to("cuda")
 
+                # Forward pass
                 with torch.autocast(device_type="cuda"):
-                    # Forward pass
-                    embeddings = model(image).cpu()
+                    embeddings: torch.Tensor = model(image)
 
-                pred_dist_mat = torch.cdist(embeddings.float(), embeddings.float(), p=2)
+                # Get loss
+                embeddings = embeddings.to("cpu", dtype=torch.float32)
+                pred_dist_mat = torch.cdist(embeddings, embeddings, p=2)
                 loss = loss_fn(pred_dist_mat, gt_dist_mat)
 
                 # Backward pass and optimization

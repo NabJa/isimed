@@ -4,7 +4,8 @@ import monai.transforms as tfm
 from monai.data import DataLoader, Dataset
 from sklearn.model_selection import train_test_split
 
-NUM_SAMPLES = 5
+NUM_SAMPLES = 64
+
 
 class DistanceDataset:
     def __init__(self, path):
