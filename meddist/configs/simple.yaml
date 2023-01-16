@@ -1,0 +1,26 @@
+# Basic config file to train MedDistSLL model.
+
+path_to_images:
+  desc: Path to Nifti images that should be trained on.
+  value: "/sc-scratch/sc-scratch-gbm-radiomics/tcia/manifest-1654187277763/nifti/FDG-PET-CT-Lesions-data2/registered"
+
+output_path:
+  desc: Path to save all checkpoints.
+  value: ""
+
+epochs:
+  desc: Number of epochs to train over
+  value: 10
+
+number_of_crops:
+  desc: Crops sampled per patient. This is the same as batch size in this training logic.
+  value: 64
+
+lr:
+  desc: Learning rate
+  value: 0.001
+
+embedding_size:
+  desc: Size of the feature vector of the trained model.
+  value: 512
+  
