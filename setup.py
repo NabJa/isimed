@@ -4,7 +4,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="MedDistSSL",
+    name="meddist",
     version="0.0.1",
     author="Nabil Jabareen",
     author_email="nabil.jabareen@charite.de",
@@ -18,5 +18,5 @@ setuptools.setup(
         "Operating System :: OS Independent",
     ],
     packages=setuptools.find_packages(),
-    python_requires=">=3.8"
+    python_requires=">=3.8",
 )
