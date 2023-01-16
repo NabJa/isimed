@@ -11,6 +11,8 @@ def run_epoch(model, loss_fn, dataloader, optimizer=None):
 
     mode = "valid" if optimizer is None else "train"
 
+    running_loss = 0.0
+
     for iteration, batch in enumerate(dataloader):
 
         # Prepare GT
@@ -40,10 +42,18 @@ def run_epoch(model, loss_fn, dataloader, optimizer=None):
             loss.backward()
             optimizer.step()
 
-        # Log
-        wandb.log({f"Loss/{mode}": loss.item()})
+        if iteration == 10:
+            break
 
+        # Log
+        running_loss += loss.item()
+        if mode == "train":
+            wandb.log({f"Loss/{mode}": loss.item()})
+
+    # Free up all memory
     torch.cuda.empty_cache()
+
+    return running_loss / iteration
 
 
 def run_training():
@@ -64,8 +74,12 @@ def run_training():
 
     # Start training
     for _ in range(wandb.config.epochs):
-        run_epoch(model, loss_fn, train_loader, optimizer)
-        run_epoch(model, loss_fn, valid_loader)
+        _ = run_epoch(model, loss_fn, train_loader, optimizer)
+
+        with torch.no_grad():
+            valid_loss = run_epoch(model, loss_fn, valid_loader)
+
+        wandb.log({"Loss/valid": valid_loss})
 
 
 if __name__ == "__main__":
