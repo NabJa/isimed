@@ -1,5 +1,6 @@
 import torch
 import wandb
+from meddist.config import init_wandb
 from meddist.data import get_dataloaders
 from meddist.dist import get_bbox_centers, get_cropped_bboxes
 from monai.networks.nets import DenseNet
@@ -41,16 +42,26 @@ def train_distance_model(model, optimizer, loss_fn, dataloader, num_epochs):
                 wandb.log({"Loss": loss.item()})
 
 
-# Define the model and optimizer
-model = DenseNet(spatial_dims=3, in_channels=1, out_channels=512).to("cuda")
-optimizer = torch.optim.Adam(model.parameters())
+if __name__ == "__main__":
 
-# Define the loss function
-loss_fn = nn.MSELoss()
+    # Read config file specifed in command line arguments.
+    init_wandb()
 
-# Define the DataLoader
-data_path = "/sc-scratch/sc-scratch-gbm-radiomics/tcia/manifest-1654187277763/nifti/FDG-PET-CT-Lesions-data2/registered"
-train_loader, valid_loader = get_dataloaders(data_path)
+    # Define the model and optimizer
+    model = DenseNet(
+        spatial_dims=3, in_channels=1, out_channels=wandb.config.embedding_size
+    ).to("cuda")
+    optimizer = torch.optim.Adam(model.parameters(), lr=wandb.config.lr)
 
-# Train the model
-train_distance_model(model, optimizer, loss_fn, train_loader, num_epochs=10)
+    # Define the loss function
+    loss_fn = nn.MSELoss()
+
+    # Define the DataLoader
+    train_loader, valid_loader = get_dataloaders(
+        wandb.config.path_to_images, num_samples=wandb.config.number_of_crops
+    )
+
+    # Train the model
+    train_distance_model(
+        model, optimizer, loss_fn, train_loader, num_epochs=wandb.config.epochs
+    )

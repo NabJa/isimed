@@ -4,8 +4,6 @@ import monai.transforms as tfm
 from monai.data import DataLoader, Dataset
 from sklearn.model_selection import train_test_split
 
-NUM_SAMPLES = 64
-
 
 class DistanceDataset:
     def __init__(self, path):
@@ -19,7 +17,7 @@ class DistanceDataset:
         return {"image": str(self.images[idx])}
 
 
-def get_dataloaders(path, valid_size=0.3):
+def get_dataloaders(path, num_samples: int, valid_size=0.3):
 
     transforms = tfm.Compose(
         [
@@ -31,7 +29,7 @@ def get_dataloaders(path, valid_size=0.3):
                 keys="image", lower=5, upper=95, b_min=-1.0, b_max=1.0
             ),
             tfm.RandSpatialCropSamplesd(
-                keys="image", roi_size=128, num_samples=NUM_SAMPLES, random_size=False
+                keys="image", roi_size=128, num_samples=num_samples, random_size=False
             ),
         ]
     )
