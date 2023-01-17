@@ -6,7 +6,7 @@ path_to_images:
 
 output_path:
   desc: Path to save all checkpoints.
-  value: ""
+  value: "/sc-scratch/sc-scratch-gbm-radiomics/meddist_models"
 
 epochs:
   desc: Number of epochs to train over
