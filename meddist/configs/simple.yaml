@@ -22,4 +22,8 @@ lr:
 
 embedding_size:
   desc: Size of the feature vector of the trained model.
-  value: 512
+  value: 1024
+
+augment:
+  desc: Whether to add simple intensity augmentation. They are applied on the full image.
+  value: True

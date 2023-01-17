@@ -17,30 +17,51 @@ class DistanceDataset:
         return {"image": str(self.images[idx])}
 
 
-def get_dataloaders(path, num_samples: int, valid_size=0.3):
+def get_transformations(num_samples: int, add_intensity_augmentation=False):
+    load_and_crop = [
+        tfm.LoadImaged(keys="image", ensure_channel_first=True),
+        tfm.CropForegroundd(
+            keys="image", source_key="image", select_fn=lambda x: x > -1000
+        ),
+        tfm.ScaleIntensityRangePercentilesd(
+            keys="image", lower=5, upper=95, b_min=-1.0, b_max=1.0
+        ),
+    ]
 
-    transforms = tfm.Compose(
-        [
-            tfm.LoadImaged(keys="image", ensure_channel_first=True),
-            tfm.CropForegroundd(
-                keys="image", source_key="image", select_fn=lambda x: x > -1000
-            ),
-            tfm.ScaleIntensityRangePercentilesd(
-                keys="image", lower=5, upper=95, b_min=-1.0, b_max=1.0
-            ),
-            tfm.RandSpatialCropSamplesd(
-                keys="image", roi_size=128, num_samples=num_samples, random_size=False
-            ),
+    if add_intensity_augmentation:
+        augment = [
+            tfm.RandGaussianNoised(keys="image", prob=0.2, mean=0.0, std=0.1),
+            tfm.RandGaussianSmoothd(keys="image", prob=0.2),
         ]
-    )
+
+    else:
+        augment = [tfm.Lambdad(keys="image", func=lambda x: x)]
+
+    crop = [
+        tfm.RandSpatialCropSamplesd(
+            keys="image", roi_size=128, num_samples=num_samples, random_size=False
+        )
+    ]
+
+    train_transforms = tfm.Compose(load_and_crop + augment + crop)
+    valid_transforms = tfm.Compose(load_and_crop + crop)
+
+    return train_transforms, valid_transforms
+
+
+def get_dataloaders(
+    path, num_samples: int, valid_size=0.3, add_intensity_augmentation=False
+):
 
     train_data, valid_data = train_test_split(
         list(DistanceDataset(path)), test_size=valid_size
     )
-    train_data, valid_data = Dataset(train_data, transform=transforms), Dataset(
-        valid_data, transform=transforms
+
+    train_transforms, valid_transforms = get_transformations(
+        num_samples, add_intensity_augmentation
     )
 
-    train_loader, valid_loader = DataLoader(train_data), DataLoader(valid_data)
+    train_data = Dataset(train_data, transform=train_transforms)
+    valid_data = Dataset(valid_data, transform=valid_transforms)
 
-    return train_loader, valid_loader
+    return DataLoader(train_data), DataLoader(valid_data)

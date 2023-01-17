@@ -82,7 +82,7 @@ def run_training():
 
     # Define the DataLoader
     train_loader, valid_loader = get_dataloaders(
-        wandb.config.path_to_images, num_samples=wandb.config.number_of_crops
+        wandb.config.path_to_images, num_samples=wandb.config.number_of_crops, add_intensity_augmentation=wandb.config.augment
     )
 
     # Start training
