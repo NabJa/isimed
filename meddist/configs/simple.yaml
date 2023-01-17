@@ -6,7 +6,7 @@ path_to_images:
 
 output_path:
   desc: Path to save all checkpoints.
-  value: "/sc-scratch/sc-scratch-gbm-radiomics/meddist_models"
+  value: "/sc-scratch/sc-scratch-gbm-radiomics/meddist_models/simple"
 
 epochs:
   desc: Number of epochs to train over
@@ -26,4 +26,4 @@ embedding_size:
 
 augment:
   desc: Whether to add simple intensity augmentation. They are applied on the full image.
-  value: True
+  value: False

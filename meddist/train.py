@@ -120,9 +120,6 @@ def run_epoch(model, loss_fn, dataloader, optimizer=None) -> None:
             running_max_dist if running_max_dist > max_distance else max_distance
         )
 
-        if iteration == 5:
-            break
-
     # Free up all memory
     torch.cuda.empty_cache()
 
