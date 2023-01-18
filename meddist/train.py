@@ -126,7 +126,10 @@ def run_epoch(model, loss_fn, dataloader, optimizer=None) -> None:
     epoch_loss = running_loss / iteration
 
     if mode == "valid":
-        wandb.log({f"{mode}/Loss": epoch_loss, f"{mode}/MaxDistance": running_max_dist})
+        wandb.log(
+            {f"{mode}/Loss": epoch_loss, f"{mode}/MaxDistance": running_max_dist},
+            commit=False,
+        )
 
     return epoch_loss
 
@@ -137,7 +140,10 @@ def run_training():
     model = DenseNet(
         spatial_dims=3, in_channels=1, out_channels=wandb.config.embedding_size
     ).to("cuda")
-    optimizer = torch.optim.Adam(model.parameters(), lr=wandb.config.lr)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=wandb.config.lr)
+    scheduler = torch.optim.lr_scheduler.ExponentialLR(
+        optimizer, gamma=0.9, verbose=True
+    )
 
     # Define the loss function
     loss_fn = nn.MSELoss()
@@ -150,10 +156,14 @@ def run_training():
     )
 
     # Define checkpoint saver
-    saver = CheckpointSaver(wandb.config.output_path, decreasing=True, top_n=1)
+    model_log_path = Path(wandb.config.output_path) / f"{wandb.run.name}_{wandb.run.id}"
+    saver = CheckpointSaver(model_log_path, decreasing=True, top_n=3)
 
     # Start training
     for epoch in range(wandb.config.epochs):
+
+        wandb.log({"LR": optimizer.param_groups[0]["lr"]}, commit=False)
+
         _ = run_epoch(model, loss_fn, train_loader, optimizer)
 
         with torch.no_grad():
@@ -162,6 +172,8 @@ def run_training():
         # Save checkpoints only 30% into the training. This prevents saving to early models.
         if epoch > wandb.config.epochs * 0.3:
             saver(model, epoch, valid_loss)
+
+        scheduler.step()
 
 
 if __name__ == "__main__":
