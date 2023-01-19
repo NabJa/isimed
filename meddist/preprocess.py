@@ -6,26 +6,40 @@ import monai.transforms as tfm
 import nibabel as nib
 import numpy as np
 import torch
+from meddist.registration import RigidTransformd
 from monai.data import DataLoader, Dataset
-from registration import RigidTransformd
 from tqdm import tqdm
 from wbpetct.data import FDG_PET_CT_Dataset
 
 torch.multiprocessing.set_sharing_strategy("file_system")
 
 
-def get_shapes_and_spacings(data, image_key="image") -> Tuple[np.ndarray, np.ndarray]:
+def all_same_values(values) -> bool:
+    return len(set(values)) <= 1
+
+
+def get_shapes_and_spacings(
+    data, image_keys: List[str] = ["ct", "seg"]
+) -> Tuple[np.ndarray, np.ndarray]:
     shapes, spacings = [], []
 
     for sample in tqdm(data, desc="get_shapes_and_spacings"):
-        img = nib.load(sample[image_key])
-        shapes.append(img.shape)
-        spacings.append(img.affine.diagonal()[:3])
+        images = [nib.load(sample[key]) for key in image_keys]
+
+        assert all_same_values(
+            [x.shape for x in images]
+        ), f"Not all images have the same shape! {sample}"
+        assert (
+            all_same_values([tuple(x.affine.diagonal()[:3]) for x in images]) <= 1
+        ), f"Not all images have the same spacing! {sample}"
+
+        shapes.append(images[0].shape)
+        spacings.append(images[0].affine.diagonal()[:3])
 
     return np.array(shapes), np.array(spacings)
 
 
-def get_mean_image(loader, total, image_key="image", output_dir: Optional[Path] = None):
+def get_mean_image(loader, total, source_key="ct", output_dir: Optional[Path] = None):
 
     # Load if mean image already exists
     if output_dir is not None:
@@ -40,9 +54,9 @@ def get_mean_image(loader, total, image_key="image", output_dir: Optional[Path] 
     mean_image = None
     for sample in tqdm(loader, total=total, desc="get_mean_image"):
         if mean_image is None:
-            mean_image = sample[image_key] * (1 / total)
+            mean_image = sample[source_key] * (1 / total)
         else:
-            mean_image += sample[image_key] * (1 / total)
+            mean_image += sample[source_key] * (1 / total)
 
     mean_image = mean_image[0]  # Remove batch dimension
 
@@ -54,7 +68,9 @@ def get_mean_image(loader, total, image_key="image", output_dir: Optional[Path] 
     return mean_image
 
 
-def preprocess(data, output_dir: Path, image_key="image", num_workers=0):
+def preprocess(
+    data, output_dir: Path, image_keys=["ct", "seg"], source_key="ct", num_workers=0
+):
 
     # Prepare output dir
     processed_dir = output_dir / "processed"
@@ -69,7 +85,7 @@ def preprocess(data, output_dir: Path, image_key="image", num_workers=0):
     )
 
     logging.info("Getting all shapes and spacings...")
-    shapes, _ = get_shapes_and_spacings(data, image_key)
+    shapes, _ = get_shapes_and_spacings(data, image_keys)
 
     MAX_DEPTH = 400
     samples_with_accaptable_shape = shapes[:, 2] <= MAX_DEPTH
@@ -85,11 +101,11 @@ def preprocess(data, output_dir: Path, image_key="image", num_workers=0):
 
     load_to_median_size = tfm.Compose(
         [
-            tfm.LoadImaged(keys=image_key),
-            tfm.EnsureChannelFirstd(keys=image_key),
-            tfm.ResizeWithPadOrCropd(keys=image_key, spatial_size=median_shape),
+            tfm.LoadImaged(keys=image_keys),
+            tfm.EnsureChannelFirstd(keys=image_keys),
+            tfm.ResizeWithPadOrCropd(keys=image_keys, spatial_size=median_shape),
             tfm.SaveImaged(
-                keys=image_key,
+                keys=image_keys,
                 output_dir=str(processed_dir),
                 resample=False,
                 print_log=False,
@@ -107,7 +123,7 @@ def preprocess(data, output_dir: Path, image_key="image", num_workers=0):
     )
 
     mean_image = get_mean_image(
-        loader, total=len(data), image_key=image_key, output_dir=output_dir
+        loader, total=len(data), source_key=source_key, output_dir=output_dir
     )
 
     # # All images generated???
@@ -118,7 +134,12 @@ def preprocess(data, output_dir: Path, image_key="image", num_workers=0):
     # logging.info(f"Images are missing: {images_missing}. Saved images: {n_saved_images}. Expected: {len(data)}")
     # if images_missing:
     #     logging.info("Regenrate all images")
-    #     get_mean_image(loader, total=len(data), image_key=image_key)
+    #     get_mean_image(loader, total=len(data), image_keys=image_keys)
+
+    return mean_image
+
+
+def register(processed_dir, mean_image):
 
     # Rigid registration
     registration_dir = output_dir / "registered"
@@ -143,16 +164,12 @@ def preprocess(data, output_dir: Path, image_key="image", num_workers=0):
         transformed_image["image"] = transformed_image["image"].numpy()
         saver(transformed_image)
 
-    # Crop
-    # Dataset Summary
-    # Preproecssing
-
 
 if __name__ == "__main__":
     data_path = "/sc-scratch/sc-scratch-gbm-radiomics/tcia/manifest-1654187277763/nifti/FDG-PET-CT-Lesions"
     output_dir = Path(
-        "/sc-scratch/sc-scratch-gbm-radiomics/tcia/manifest-1654187277763/nifti/FDG-PET-CT-Lesions-data2"
+        "/sc-scratch/sc-scratch-gbm-radiomics/tcia/manifest-1654187277763/nifti/FDG-PET-CT-Lesions-data3"
     )
     data = FDG_PET_CT_Dataset(data_path)
 
-    preprocess(data, output_dir, image_key="ct", num_workers=8)
+    mean_image = preprocess(data, output_dir, image_keys=["ct", "seg"], num_workers=8)
