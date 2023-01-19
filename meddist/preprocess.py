@@ -6,7 +6,7 @@ import monai.transforms as tfm
 import nibabel as nib
 import numpy as np
 import torch
-from meddist.registration import RigidTransformd
+from meddist.registration import DirectoryRegistration, RigidTransformd
 from monai.data import DataLoader, Dataset
 from tqdm import tqdm
 from wbpetct.data import FDG_PET_CT_Dataset
@@ -173,3 +173,6 @@ if __name__ == "__main__":
     data = FDG_PET_CT_Dataset(data_path)
 
     mean_image = preprocess(data, output_dir, image_keys=["ct", "seg"], num_workers=8)
+
+    dirreg = DirectoryRegistration(output_dir)
+    dirreg.run_registration()

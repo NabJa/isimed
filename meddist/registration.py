@@ -1,24 +1,68 @@
+import logging
+from pathlib import Path
+
 import airlab as al
 import torch
 from monai import transforms as tfm
-from monai.data import DataLoader
-from monai.data.meta_tensor import MetaTensor
+from monai.data import DataLoader, Dataset, MetaTensor
 from monai.transforms import Transform
-from torch.utils.data import DataLoader as dl
+from tqdm import tqdm
+
+
+class DirectoryRegistration:
+    def __init__(self, directory: Path, image_pattern="CTres_*.nii.gz"):
+        self.directory = Path(directory)
+        self.input_dir = self.directory / "processed"
+        self.output_dir = self.directory / "registered"
+        self.fixed_image_path = self.directory / "mean_image.th"
+        self.image_pattern = image_pattern
+
+        self.output_dir.mkdir(exist_ok=True)
+
+    def get_transform(self):
+        with open(self.fixed_image_path, mode="rb") as file:
+            mean_image = torch.load(file)
+
+        return tfm.Compose(
+            [
+                tfm.LoadImaged(keys=["img", "seg"]),
+                RigidTransformd(
+                    fixed_image=mean_image, image_key="img", label_key="seg"
+                ),
+                tfm.SaveImaged(
+                    keys=["img", "seg"],
+                    output_dir=self.output_dir,
+                    resample=False,
+                    print_log=False,
+                    separate_folder=False,
+                    output_postfix="",
+                ),
+            ]
+        )
+
+    def get_data(self):
+        data = []
+        for sample in self.input_dir.glob(self.image_pattern):
+
+            # TODO needs refactoring. We should make one directory per patient!
+            extension = sample.name.split("_", 1)[1]
+            seg_path = sample.parent / f"SEG_{extension}"
+
+            if seg_path.is_file() and sample.is_file():
+                data.append({"img": str(sample), "seg": str(seg_path)})
+        return data
+
+    def run_registration(self, num_workers=8):
+        dataset = Dataset(self.get_data(), transform=self.get_transform())
+        loader = DataLoader(dataset=dataset, num_workers=num_workers)
+
+        for _ in tqdm(loader, total=len(dataset), desc="Rigistration"):
+            continue
 
 
 def run_rigid_transformation(
-    fixed_image: al.Image, moving_image: al.Image, device=None, verbose=False
+    fixed_image: al.Image, moving_image: al.Image, verbose=False
 ):
-
-    # Setup device
-    if device is None:
-        device = (
-            torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-        )
-
-    fixed_image = fixed_image.to(device=device)
-    moving_image = moving_image.to(device=device)
 
     # create pairwise registration object
     registration = al.PairwiseRegistration(verbose=verbose)
@@ -45,24 +89,44 @@ def run_rigid_transformation(
     # start the registration
     registration.start()
 
-    # warp the moving image with the final transformation result
-    displacement = transformation.get_displacement()
-    warped_image = al.transformation.utils.warp_image(moving_image, displacement)
-
-    return warped_image, displacement
+    return transformation.get_displacement()
 
 
 class RigidTransformd(Transform):
-    def __init__(self, fixed_image: torch.Tensor, image_key="image"):
-        self.fixed_image = self._parse_to_3d(fixed_image)
+    def __init__(self, fixed_image: torch.Tensor, image_key="img", label_key="seg"):
+        self.device = (
+            torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+        )
+
+        self.fixed_image = self._parse_to_3d(fixed_image).to(device=self.device)
         self.image_key = image_key
+        self.label_key = label_key
 
     def __call__(self, data: MetaTensor):
+
+        moving_meta = data[self.image_key].meta
+        moving_affine = data[self.image_key].affine
+
+        label_meta = data[self.label_key].meta
+        label_affine = data[self.label_key].affine
+
         moving_image = self._parse_to_3d(data[self.image_key])
+        label_image = self._parse_to_3d(data[self.label_key])
 
-        warped_image, _ = run_rigid_transformation(self.fixed_image, moving_image)
+        moving_image.to(device=self.device)
+        label_image.to(device=self.device)
 
-        data[self.image_key] = warped_image
+        displacement = run_rigid_transformation(self.fixed_image, moving_image)
+
+        warped_image = al.transformation.utils.warp_image(moving_image, displacement)
+        warped_label = al.transformation.utils.warp_image(label_image, displacement)
+
+        data[self.image_key] = MetaTensor(
+            warped_image.numpy(), moving_affine, moving_meta
+        )
+        data[self.label_key] = MetaTensor(
+            warped_label.numpy(), label_affine, label_meta
+        )
 
         return data
 
