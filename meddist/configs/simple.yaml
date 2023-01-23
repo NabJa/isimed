@@ -1,8 +1,8 @@
 # Basic config file to train MedDistSLL model.
 
-path_to_images:
-  desc: Path to Nifti images that should be trained on.
-  value: "/sc-scratch/sc-scratch-gbm-radiomics/tcia/manifest-1654187277763/nifti/FDG-PET-CT-Lesions-data2/registered"
+path_to_data_split:
+  desc: Path to Pickle file containing train and validation paths for images that should be trained on.
+  value: "/sc-scratch/sc-scratch-gbm-radiomics/tcia/manifest-1654187277763/nifti/FDG-PET-CT-Lesions-trans/split.pkl"
 
 output_path:
   desc: Path to save all checkpoints.

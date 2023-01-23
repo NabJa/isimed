@@ -6,6 +6,7 @@ import monai.transforms as tfm
 import nibabel as nib
 import numpy as np
 import torch
+from meddist.data import DistDataset, split_dataset
 from meddist.registration import DirectoryRegistration, RigidTransformd
 from monai.data import DataLoader, Dataset
 from tqdm import tqdm
@@ -142,6 +143,7 @@ if __name__ == "__main__":
     )
     data = FDG_PET_CT_Dataset(data_path)
 
+    # Preprocessing
     mean_image = preprocess(
         data,
         output_dir,
@@ -150,5 +152,9 @@ if __name__ == "__main__":
         num_workers=8,
     )
 
+    # Registration
     dirreg = DirectoryRegistration(output_dir)
     dirreg.run_registration()
+
+    # Data split into train, valid and test set
+    _ = split_dataset(DistDataset(dirreg.output_dir), save=output_dir)
