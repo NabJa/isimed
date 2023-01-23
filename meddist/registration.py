@@ -5,7 +5,7 @@ import airlab as al
 import torch
 from monai import transforms as tfm
 from monai.data import DataLoader, Dataset, MetaTensor
-from monai.transforms import Transform
+from monai.transforms import ThreadUnsafe
 from tqdm import tqdm
 
 
@@ -54,6 +54,9 @@ class DirectoryRegistration:
                 RigidTransformd(
                     fixed_image=mean_image, image_key="img", label_key="seg"
                 ),
+                tfm.ToDeviced(
+                    keys=["img", "seg"], device="cpu", allow_missing_keys=True
+                ),
                 tfm.SaveImaged(
                     keys=["img", "seg"],
                     output_dir=self.output_dir,
@@ -66,13 +69,9 @@ class DirectoryRegistration:
             ]
         )
 
-    def run_registration(self, num_workers=8):
-
-        # Solves this isse: https://github.com/pytorch/pytorch/issues/40403
-        torch.multiprocessing.set_start_method("spawn")
-
+    def run_registration(self):
         dataset = Dataset(self.data, transform=self.get_transform())
-        loader = DataLoader(dataset=dataset, num_workers=num_workers)
+        loader = DataLoader(dataset=dataset, num_workers=0)
 
         self.output_dir.mkdir(exist_ok=True)
 
@@ -112,7 +111,7 @@ def run_rigid_transformation(
     return transformation.get_displacement()
 
 
-class RigidTransformd(Transform):
+class RigidTransformd(ThreadUnsafe):
     def __init__(self, fixed_image: torch.Tensor, image_key="img", label_key="seg"):
         self.device = (
             torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
