@@ -69,7 +69,12 @@ def get_mean_image(loader, total, source_key="ct", output_dir: Optional[Path] = 
 
 
 def preprocess(
-    data, output_dir: Path, image_keys=["ct", "seg"], source_key="ct", num_workers=0
+    data,
+    output_dir: Path,
+    data_root_dir: Path,
+    image_keys=["ct", "seg"],
+    source_key="ct",
+    num_workers=0,
 ):
 
     # Prepare output dir
@@ -111,6 +116,7 @@ def preprocess(
                 print_log=False,
                 separate_folder=False,
                 output_postfix="",
+                data_root_dir=str(data_root_dir),
             ),
         ]
     )
@@ -126,27 +132,23 @@ def preprocess(
         loader, total=len(data), source_key=source_key, output_dir=output_dir
     )
 
-    # # All images generated???
-    # TODO handle multiple images per patient
-    # n_saved_images = len(list(processed_dir.glob("*.nii.gz")))
-    # images_missing = n_saved_images != len(data)
-
-    # logging.info(f"Images are missing: {images_missing}. Saved images: {n_saved_images}. Expected: {len(data)}")
-    # if images_missing:
-    #     logging.info("Regenrate all images")
-    #     get_mean_image(loader, total=len(data), image_keys=image_keys)
-
     return mean_image
 
 
 if __name__ == "__main__":
     data_path = "/sc-scratch/sc-scratch-gbm-radiomics/tcia/manifest-1654187277763/nifti/FDG-PET-CT-Lesions"
     output_dir = Path(
-        "/sc-scratch/sc-scratch-gbm-radiomics/tcia/manifest-1654187277763/nifti/FDG-PET-CT-Lesions-data3"
+        "/sc-scratch/sc-scratch-gbm-radiomics/tcia/manifest-1654187277763/nifti/FDG-PET-CT-Lesions-trans"
     )
     data = FDG_PET_CT_Dataset(data_path)
 
-    mean_image = preprocess(data, output_dir, image_keys=["ct", "seg"], num_workers=8)
+    mean_image = preprocess(
+        data,
+        output_dir,
+        data_root_dir=data_path,
+        image_keys=["ct", "seg"],
+        num_workers=8,
+    )
 
     dirreg = DirectoryRegistration(output_dir)
     dirreg.run_registration()

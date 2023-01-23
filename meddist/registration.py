@@ -10,10 +10,12 @@ from tqdm import tqdm
 
 
 class DirectoryRegistration:
-    def __init__(self, directory: Path, image_pattern="CTres_*.nii.gz"):
+    def __init__(
+        self, directory: Path, image_pattern="CTres_*.nii.gz"
+    ):
         self.directory = Path(directory)
         self.input_dir = self.directory / "processed"
-        self.output_dir = self.directory / "registered2"
+        self.output_dir = self.directory / "registered"
         self.fixed_image_path = self.directory / "mean_image.th"
         self.image_pattern = image_pattern
 
@@ -29,7 +31,7 @@ class DirectoryRegistration:
 
     def get_data(self):
         data = []
-        for sample in self.input_dir.glob(self.image_pattern):
+        for sample in self.input_dir.rglob(self.image_pattern):
 
             sample_dict = {"img": str(sample)}
 
@@ -65,6 +67,7 @@ class DirectoryRegistration:
                     separate_folder=False,
                     output_postfix="",
                     allow_missing_keys=True,
+                    data_root_dir=str(self.input_dir),
                 ),
             ]
         )
@@ -74,6 +77,8 @@ class DirectoryRegistration:
         loader = DataLoader(dataset=dataset, num_workers=0)
 
         self.output_dir.mkdir(exist_ok=True)
+
+        logging.info(f"Start registration to {self.output_dir}. n={len(dataset)}")
 
         for _ in tqdm(loader, total=len(dataset), desc="Rigistration"):
             continue
