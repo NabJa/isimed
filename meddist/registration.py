@@ -13,11 +13,36 @@ class DirectoryRegistration:
     def __init__(self, directory: Path, image_pattern="CTres_*.nii.gz"):
         self.directory = Path(directory)
         self.input_dir = self.directory / "processed"
-        self.output_dir = self.directory / "registered"
+        self.output_dir = self.directory / "registered2"
         self.fixed_image_path = self.directory / "mean_image.th"
         self.image_pattern = image_pattern
 
         self.output_dir.mkdir(exist_ok=True)
+
+        self.data = self.get_data()
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, index):
+        return self.data[index]
+
+    def get_data(self):
+        data = []
+        for sample in self.input_dir.glob(self.image_pattern):
+
+            sample_dict = {"img": str(sample)}
+
+            # TODO needs refactoring. We should make one directory per patient!
+            extension = sample.name.split("_", 1)[1]
+            seg_path = sample.parent / f"SEG_{extension}"
+
+            if seg_path.is_file():
+                sample_dict["seg"] = str(seg_path)
+
+            data.append(sample_dict)
+
+        return data
 
     def get_transform(self):
         with open(self.fixed_image_path, mode="rb") as file:
@@ -25,7 +50,7 @@ class DirectoryRegistration:
 
         return tfm.Compose(
             [
-                tfm.LoadImaged(keys=["img", "seg"]),
+                tfm.LoadImaged(keys=["img", "seg"], allow_missing_keys=True),
                 RigidTransformd(
                     fixed_image=mean_image, image_key="img", label_key="seg"
                 ),
@@ -36,25 +61,20 @@ class DirectoryRegistration:
                     print_log=False,
                     separate_folder=False,
                     output_postfix="",
+                    allow_missing_keys=True,
                 ),
             ]
         )
 
-    def get_data(self):
-        data = []
-        for sample in self.input_dir.glob(self.image_pattern):
-
-            # TODO needs refactoring. We should make one directory per patient!
-            extension = sample.name.split("_", 1)[1]
-            seg_path = sample.parent / f"SEG_{extension}"
-
-            if seg_path.is_file() and sample.is_file():
-                data.append({"img": str(sample), "seg": str(seg_path)})
-        return data
-
     def run_registration(self, num_workers=8):
-        dataset = Dataset(self.get_data(), transform=self.get_transform())
+
+        # Solves this isse: https://github.com/pytorch/pytorch/issues/40403
+        torch.multiprocessing.set_start_method("spawn")
+
+        dataset = Dataset(self.data, transform=self.get_transform())
         loader = DataLoader(dataset=dataset, num_workers=num_workers)
+
+        self.output_dir.mkdir(exist_ok=True)
 
         for _ in tqdm(loader, total=len(dataset), desc="Rigistration"):
             continue
@@ -84,7 +104,7 @@ def run_rigid_transformation(
     optimizer = torch.optim.Adam(transformation.parameters(), lr=0.1)
 
     registration.set_optimizer(optimizer)
-    registration.set_number_of_iterations(500)
+    registration.set_number_of_iterations(50)
 
     # start the registration
     registration.start()
@@ -105,28 +125,26 @@ class RigidTransformd(Transform):
     def __call__(self, data: MetaTensor):
 
         moving_meta = data[self.image_key].meta
-        moving_affine = data[self.image_key].affine
-
-        label_meta = data[self.label_key].meta
-        label_affine = data[self.label_key].affine
+        if self.label_key in data:
+            label_meta = data[self.label_key].meta
 
         moving_image = self._parse_to_3d(data[self.image_key])
-        label_image = self._parse_to_3d(data[self.label_key])
+        if self.label_key in data:
+            label_image = self._parse_to_3d(data[self.label_key])
 
         moving_image.to(device=self.device)
-        label_image.to(device=self.device)
+        if self.label_key in data:
+            label_image.to(device=self.device)
 
         displacement = run_rigid_transformation(self.fixed_image, moving_image)
 
         warped_image = al.transformation.utils.warp_image(moving_image, displacement)
-        warped_label = al.transformation.utils.warp_image(label_image, displacement)
+        if self.label_key in data:
+            warped_label = al.transformation.utils.warp_image(label_image, displacement)
 
-        data[self.image_key] = MetaTensor(
-            warped_image.numpy(), moving_affine, moving_meta
-        )
-        data[self.label_key] = MetaTensor(
-            warped_label.numpy(), label_affine, label_meta
-        )
+        data[self.image_key] = MetaTensor(warped_image.numpy(), meta=moving_meta)
+        if self.label_key in data:
+            data[self.label_key] = MetaTensor(warped_label.numpy(), meta=label_meta)
 
         return data
 
