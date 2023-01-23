@@ -139,32 +139,6 @@ def preprocess(
     return mean_image
 
 
-def register(processed_dir, mean_image):
-
-    # Rigid registration
-    registration_dir = output_dir / "registered"
-    registration_dir.mkdir(exist_ok=True)
-
-    data = [{"image": str(p)} for p in processed_dir.glob("*.nii.gz")]
-    rigid_transformation = tfm.Compose(
-        [tfm.LoadImaged(keys="image"), RigidTransformd(fixed_image=mean_image)]
-    )
-    dataset = Dataset(data, transform=rigid_transformation)
-
-    saver = tfm.SaveImaged(
-        keys="image",
-        output_dir=registration_dir,
-        resample=False,
-        print_log=False,
-        separate_folder=False,
-        output_postfix="",
-    )
-
-    for transformed_image in tqdm(dataset, desc="Rigistration"):
-        transformed_image["image"] = transformed_image["image"].numpy()
-        saver(transformed_image)
-
-
 if __name__ == "__main__":
     data_path = "/sc-scratch/sc-scratch-gbm-radiomics/tcia/manifest-1654187277763/nifti/FDG-PET-CT-Lesions"
     output_dir = Path(
