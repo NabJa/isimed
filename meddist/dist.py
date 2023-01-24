@@ -36,7 +36,6 @@ def extract_operation_class(meta, operation_class_name="RandSpatialCropSamples")
     return operation_dicts
 
 
-
 def transform_bbox_formats(crop_dicts: List[dict]) -> np.ndarray:
     """Take all crop operations and retuns them as array with the format (nsamples, 6). Where 6 is [height_start, heigth_end, ...]"""
 
@@ -64,8 +63,6 @@ def get_cropped_bboxes(
     return transform_bbox_formats(extract_operation_class(meta, crop_class))
 
 
-
-
 def get_bbox_centers(bbox: np.ndarray) -> np.ndarray:
     """Center is computed as starts + (ends - starts) / 2"""
     bbox = np.array(bbox)
@@ -75,7 +72,6 @@ def get_bbox_centers(bbox: np.ndarray) -> np.ndarray:
     if len(bbox.shape) == 2:
         return bbox[:, ::2] + (bbox[:, 1::2] - bbox[:, ::2]) / 2
     raise ValueError("Bboxes must be 1 dimensional or 2 dimenstional.")
-
 
 
 def pairwise_comparisons(nsamples: int) -> List:
