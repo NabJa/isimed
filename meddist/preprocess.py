@@ -1,3 +1,4 @@
+import argparse
 import logging
 from pathlib import Path
 from typing import List, Optional, Tuple
@@ -7,7 +8,7 @@ import nibabel as nib
 import numpy as np
 import torch
 from meddist.data import DistDataset, split_dataset
-from meddist.registration import DirectoryRegistration, RigidTransformd
+from meddist.registration import DirectoryRegistration
 from monai.data import DataLoader, Dataset
 from tqdm import tqdm
 from wbpetct.data import FDG_PET_CT_Dataset
@@ -136,25 +137,42 @@ def preprocess(
     return mean_image
 
 
-if __name__ == "__main__":
+def parse_args():
     data_path = "/sc-scratch/sc-scratch-gbm-radiomics/tcia/manifest-1654187277763/nifti/FDG-PET-CT-Lesions"
     output_dir = Path(
         "/sc-scratch/sc-scratch-gbm-radiomics/tcia/manifest-1654187277763/nifti/FDG-PET-CT-Lesions-trans"
     )
-    data = FDG_PET_CT_Dataset(data_path)
 
-    # Preprocessing
-    mean_image = preprocess(
-        data,
-        output_dir,
-        data_root_dir=data_path,
-        image_keys=["ct", "seg"],
-        num_workers=8,
-    )
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-input", type=Path, default=data_path)
+    parser.add_argument("-output", type=Path, default=output_dir)
+    parser.add_argument("-disable_preprocess", action="store_true", default=False)
+    parser.add_argument("-disable_register", action="store_true", default=False)
+    parser.add_argument("-disable_split", action="store_true", default=False)
+    return parser.parse_args()
 
-    # Registration
-    dirreg = DirectoryRegistration(output_dir)
-    dirreg.run_registration()
 
-    # Data split into train, valid and test set
-    _ = split_dataset(DistDataset(dirreg.output_dir), save=output_dir)
+if __name__ == "__main__":
+
+    args = parse_args()
+
+    data = FDG_PET_CT_Dataset(args.input)
+
+    # # Preprocessing
+    if not args.disable_preprocess:
+        mean_image = preprocess(
+            data,
+            args.output,
+            data_root_dir=args.input,
+            image_keys=["ct", "seg"],
+            num_workers=8,
+        )
+
+    # # Registration
+    dirreg = DirectoryRegistration(args.output)
+    if not args.disable_register:
+        dirreg.run_registration()
+
+    # # Data split into train, valid and test set
+    if not args.disable_split:
+        _ = split_dataset(DistDataset(dirreg.output_dir), save=args.output)
