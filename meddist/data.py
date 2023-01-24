@@ -24,31 +24,31 @@ def split_dataset(
     Returns:
         Tuple: Train, validation and test data
     """
-    data: MonaiData = [item for item in dataset]
-    train_data: MonaiData = [item for item in data if "label" not in item]
-    labeled_data: MonaiData = [item for item in data if "label" in item]
+    train_size = 1 - test_size - val_size
 
-    if len(train_data) == 0:
-        # if all items contain the "label" key, use labeled_data for train and val
-        train_data, val_data = train_test_split(
-            labeled_data, test_size=test_size + val_size, random_state=seed
-        )
-        val_data, test_data = train_test_split(
-            val_data, test_size=test_size / (test_size + val_size), random_state=seed
-        )
-    else:
-        train_data, val_data = train_test_split(
-            train_data, test_size=test_size + val_size, random_state=seed
-        )
-        val_data, test_data = train_test_split(
-            val_data, test_size=test_size / (test_size + val_size), random_state=seed
-        )
-        labeled_data, test_data = train_test_split(
-            labeled_data,
-            test_size=test_size / (test_size + val_size),
-            random_state=seed,
-        )
-        train_data += labeled_data
+    assert (train_size + test_size + val_size) == 1
+
+    data = [item for item in dataset]
+    train_data = [item for item in data if "label" not in item]
+    labeled_data = [item for item in data if "label" in item]
+
+    # Proportion of labeled_data that can go to train_data
+    remaining_train_size = (train_size * len(data) - len(train_data)) / len(
+        labeled_data
+    )
+
+    # Complete train data. All unlabeled + remaining labeled to get train_size
+    remaining_train_data, val_and_test_data = train_test_split(
+        labeled_data, train_size=remaining_train_size, random_state=seed
+    )
+    train_data += remaining_train_data
+
+    # Remaining labeled data can be split in val and test
+    val_data, test_data = train_test_split(
+        val_and_test_data,
+        test_size=test_size / (test_size + val_size),
+        random_state=seed,
+    )
 
     if save is not None:
         save = Path(save)
