@@ -142,9 +142,9 @@ class RigidTransformd(ThreadUnsafe):
 
         displacement = run_rigid_transformation(self.fixed_image, moving_image)
 
-        warped_image = al.transformation.utils.warp_image(moving_image, displacement)
+        warped_image = al.transformation.utils.warp_image(moving_image, displacement, mode="bilinear")
         if self.label_key in data:
-            warped_label = al.transformation.utils.warp_image(label_image, displacement)
+            warped_label = al.transformation.utils.warp_image(label_image, displacement, mode="nearest")
 
         data[self.image_key] = MetaTensor(warped_image.numpy(), meta=moving_meta)
         if self.label_key in data:
