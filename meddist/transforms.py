@@ -1,5 +1,7 @@
 from copy import deepcopy
 
+import numpy as np
+import torch
 from monai.config import KeysCollection
 from monai.transforms import (
     MapTransform,
@@ -83,7 +85,17 @@ class RandCropBlanacedd(Randomizable, MapTransform):
         self.num_samples = num_samples
         self.allow_smaller = allow_smaller
 
+        self.seen_pos = 0
+        self.seen_neg = 0
+
+    def update_pos_neg(self):
+        self.pos = (self.seen_neg + 1) / (self.seen_pos + 1)
+        self.neg = (self.seen_pos + 1) / (self.seen_neg + 1)
+
     def get_cropper(self, label, image):
+
+        self.update_pos_neg()
+
         fg_indices, _ = map_binary_to_indices(label, image, self.image_threshold)
 
         if len(fg_indices) == 0:
@@ -122,6 +134,13 @@ class RandCropBlanacedd(Randomizable, MapTransform):
                 crops = cropper(d[key])
             else:
                 crops = cropper(d[key], label=label, randomize=True)
+
+            if key == self.label_key:
+                for crop in crops:
+                    if torch.sum(crop.flatten()) > 0:
+                        self.seen_pos += 1
+                    else:
+                        self.seen_neg += 1
 
             for i, im in enumerate(crops):
                 ret[i][key] = im
