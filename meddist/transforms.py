@@ -145,3 +145,24 @@ class RandCropBlanacedd(Randomizable, MapTransform):
             for i, im in enumerate(crops):
                 ret[i][key] = im
         return ret
+
+
+class GetClassesFromCropsd(MapTransform):
+    def __init__(
+        self, label_key, class_key="has_pos_voxels", regression_key="num_pos_voxels"
+    ):
+        self.label_key = label_key
+        self.class_key = class_key
+        self.regression_key = regression_key
+
+    def __call__(self, data):
+        if isinstance(data, list):
+            for sample in data:
+                num_pos_voxels = torch.sum(sample[self.label_key].flatten()).int()
+                sample[self.regression_key] = num_pos_voxels.item()
+                sample[self.class_key] = (num_pos_voxels > 0).int().item()
+        else:
+            num_pos_voxels = torch.sum(data[self.label_key].flatten()).int()
+            data[self.regression_key] = num_pos_voxels.item()
+            data[self.class_key] = (num_pos_voxels > 0).int().item()
+        return data
