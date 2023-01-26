@@ -3,12 +3,16 @@ from pathlib import Path
 
 import numpy as np
 import torch
+from monai.networks.nets import DenseNet
+from monai.utils.misc import set_determinism
+from torch import nn
+
 import wandb
 from meddist.config import init_wandb
 from meddist.data import get_dataloaders
 from meddist.dist import get_bbox_centers, get_cropped_bboxes
-from monai.networks.nets import DenseNet
-from torch import nn
+
+set_determinism()
 
 
 class CheckpointSaver:
