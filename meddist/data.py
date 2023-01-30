@@ -205,11 +205,11 @@ class DistanceDataset:
         return {"image": str(self.images[idx])}
 
 
-def get_transformations(num_samples: int, add_intensity_augmentation=False):
+def get_transformations(num_samples: int, crop_size=128, add_intensity_augmentation=False):
     load_and_crop = [
         tfm.LoadImaged(keys="image", ensure_channel_first=True),
         tfm.CropForegroundd(
-            keys="image", source_key="image", select_fn=lambda x: x > -1000
+            keys="image", source_key="image", select_fn=lambda x: x > 0
         ),
         tfm.ScaleIntensityRangePercentilesd(
             keys="image", lower=5, upper=95, b_min=-1.0, b_max=1.0
@@ -227,7 +227,7 @@ def get_transformations(num_samples: int, add_intensity_augmentation=False):
 
     crop = [
         tfm.RandSpatialCropSamplesd(
-            keys="image", roi_size=128, num_samples=num_samples, random_size=False
+            keys="image", roi_size=crop_size, num_samples=num_samples, random_size=False
         )
     ]
 
@@ -238,7 +238,7 @@ def get_transformations(num_samples: int, add_intensity_augmentation=False):
 
 
 def get_dataloaders(
-    path, num_samples: int, valid_size=0.3, add_intensity_augmentation=False
+    path, num_samples: int, valid_size=0.3, crop_size=128, add_intensity_augmentation=False
 ):
     path = Path(path)
 
@@ -257,7 +257,7 @@ def get_dataloaders(
         train_data, valid_data = train_test_split(data, test_size=valid_size)
 
     train_transforms, valid_transforms = get_transformations(
-        num_samples, add_intensity_augmentation
+        num_samples, crop_size, add_intensity_augmentation
     )
 
     train_data = Dataset(train_data, transform=train_transforms)

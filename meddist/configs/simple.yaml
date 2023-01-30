@@ -14,6 +14,10 @@ epochs:
 
 number_of_crops:
   desc: Crops sampled per patient. This is the same as batch size in this training logic.
+  value: 256
+
+crop_size:
+  desc: Size of the crop.
   value: 64
 
 lr:
