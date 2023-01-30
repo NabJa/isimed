@@ -1,12 +1,77 @@
 import pickle
+import random
+from collections import defaultdict
+from functools import partial
+from multiprocessing import Pool
 from pathlib import Path
 from typing import List, Optional, Tuple
 
 import monai.transforms as tfm
+import nibabel as nib
+import numpy as np
 from monai.data import DataLoader, Dataset
 from sklearn.model_selection import train_test_split
+from tqdm import tqdm
 
 MonaiData = List[dict]
+
+
+def has_segmentation(data, label_key="label"):
+    data["has_segmentation"] = 0
+
+    if label_key in data:
+        label = nib.load(data[label_key]).get_fdata()
+        if np.sum(label) > 0:
+            data["has_segmentation"] = 1
+
+    return data
+
+
+def get_all_with_seg(dataset, label_key="label", processes=8):
+    has_seg = partial(has_segmentation, label_key=label_key)
+    with Pool(processes=processes) as p:
+        return list(tqdm(p.imap(has_seg, list(dataset)), total=len(dataset)))
+
+
+def get_patient_name(path):
+    return Path(path).parents[1].name
+
+
+def split_segmentation_data(data, valid_size=0.2, save=None):
+
+    data = get_all_with_seg(data)
+
+    patients = defaultdict(list)
+    patient_dicts = defaultdict(list)
+
+    for d in data:
+        name = get_patient_name(d["image"])
+        patients[name].append(d["has_segmentation"])
+        patient_dicts[name].append(d)
+
+    patients_with_label = [k for k, v in patients.items() if np.all(v)]
+    patients_without_label = [k for k, v in patients.items() if not np.all(v)]
+
+    valid_data = set(random.sample(patients_with_label, int(valid_size * len(data))))
+    test_data = set(patients_with_label) - valid_data
+    train_data = set(patients_with_label) - valid_data - test_data | set(
+        patients_without_label
+    )
+
+    _train_data, _valid_data, _test_data = [], [], []
+
+    for patient, series in patient_dicts.items():
+        if patient in train_data:
+            _train_data += series
+        elif patient in valid_data:
+            _valid_data += series
+        elif patient in test_data:
+            _test_data += series
+
+    if save is not None:
+        save_datasplit(_train_data, _valid_data, _test_data, save)
+
+    return _train_data, _valid_data, _test_data
 
 
 def split_dataset(
@@ -51,15 +116,20 @@ def split_dataset(
     )
 
     if save is not None:
-        save = Path(save)
-        if save.is_dir():
-            save = save / "split.pkl"
-
-        with open(save, mode="wb") as file:
-            split = {"train": train_data, "validation": val_data, "test": test_data}
-            pickle.dump(split, file)
+        save_datasplit(train_data, val_data, test_data, save)
 
     return train_data, val_data, test_data
+
+
+def save_datasplit(train_data, val_data, test_data, save_to_path) -> None:
+    save_to_path = Path(save_to_path)
+
+    if save_to_path.is_dir():
+        save_to_path = save_to_path / "split.pkl"
+
+    with open(save_to_path, mode="wb") as file:
+        split = {"train": train_data, "validation": val_data, "test": test_data}
+        pickle.dump(split, file)
 
 
 def find_parent_dirs(root_dir: str, postfix: str) -> set:

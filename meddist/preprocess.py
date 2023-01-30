@@ -7,7 +7,7 @@ import monai.transforms as tfm
 import nibabel as nib
 import numpy as np
 import torch
-from meddist.data import DistDataset, split_dataset
+from meddist.data import DistDataset, split_segmentation_data
 from meddist.registration import DirectoryRegistration
 from monai.data import DataLoader, Dataset
 from tqdm import tqdm
@@ -175,4 +175,4 @@ if __name__ == "__main__":
 
     # # Data split into train, valid and test set
     if not args.disable_split:
-        _ = split_dataset(DistDataset(dirreg.output_dir), save=args.output)
+        _ = split_segmentation_data(DistDataset(dirreg.output_dir), save=args.output)
