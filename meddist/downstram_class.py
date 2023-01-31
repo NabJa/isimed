@@ -1,13 +1,11 @@
 import argparse
 import pickle
 
-import matplotlib.pyplot as plt
 import monai.transforms as tfm
-import numpy as np
 import torch
 import wandb
 from meddist.nets import ClassificationHead, load_densenet
-from meddist.transforms import GetClassesFromCropsd, RandCropBlanacedd
+from meddist.transforms import GetClassesFromCropsd
 from monai.data import DataLoader, Dataset
 from monai.metrics import ConfusionMatrixMetric
 from monai.utils.misc import set_determinism
@@ -85,7 +83,7 @@ def iteration(model: nn.Module, loss_fn, loader, optimizer=None):
         if mode == "train":
             wandb.log({f"{mode}/Loss": loss.item()})
 
-        pred_binary = nn.Sigmoid()(pred > 0.5).int()
+        pred_binary = (nn.Sigmoid()(pred) > 0.5).int()
 
         predictions += pred_binary.flatten().tolist()
 
@@ -96,10 +94,6 @@ def iteration(model: nn.Module, loss_fn, loader, optimizer=None):
 
     if mode == "valid":
         metric_dict[f"{mode}/Loss"] = running_loss / i
-
-    plt.hist(predictions, bins=30)
-    metric_dict[f"{mode}/pred_balance"] = np.mean(predictions)
-    metric_dict[f"{mode}/predictions"] = plt
 
     wandb.log(metric_dict, commit=False)
 
