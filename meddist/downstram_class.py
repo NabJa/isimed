@@ -1,23 +1,23 @@
 import argparse
 import pickle
 
+import matplotlib.pyplot as plt
 import monai.transforms as tfm
 import numpy as np
 import torch
+import wandb
+from meddist.nets import ClassificationHead, load_densenet
+from meddist.transforms import GetClassesFromCropsd, RandCropBlanacedd
 from monai.data import DataLoader, Dataset
 from monai.metrics import ConfusionMatrixMetric
 from monai.utils.misc import set_determinism
 from torch import nn
 
-import wandb
-from meddist.nets import ClassificationHead, load_densenet
-from meddist.transforms import GetClassesFromCropsd, RandCropBlanacedd
-
 torch.multiprocessing.set_sharing_strategy("file_system")
 set_determinism()
 
 
-def get_data_loaders():
+def get_data_loaders(crop_size=64):
     with open(wandb.config.path_to_data_split, mode="rb") as file:
         split = pickle.load(file)
 
@@ -27,16 +27,17 @@ def get_data_loaders():
             tfm.CropForegroundd(
                 keys=["image", "label"],
                 source_key="image",
-                select_fn=lambda x: x > -1000,
+                select_fn=lambda x: x > 0,
             ),
             tfm.ScaleIntensityRangePercentilesd(
                 keys="image", lower=5, upper=95, b_min=-1.0, b_max=1.0
             ),
-            RandCropBlanacedd(
+            tfm.RandCropByPosNegLabeld(
                 keys=["image", "label"],
                 label_key="label",
-                spatial_size=128,
-                num_samples=5,
+                pos=0.65,
+                num_samples=32,
+                spatial_size=crop_size,
             ),
             GetClassesFromCropsd(label_key="label"),
         ]
@@ -96,7 +97,9 @@ def iteration(model: nn.Module, loss_fn, loader, optimizer=None):
     if mode == "valid":
         metric_dict[f"{mode}/Loss"] = running_loss / i
 
+    plt.hist(predictions, bins=30)
     metric_dict[f"{mode}/pred_balance"] = np.mean(predictions)
+    metric_dict[f"{mode}/predictions"] = plt
 
     wandb.log(metric_dict, commit=False)
 
@@ -111,7 +114,7 @@ def train():
         pos_weight=torch.tensor(float(wandb.config.pos_weight))
     )
 
-    loader_train, loader_valid = get_data_loaders()
+    loader_train, loader_valid = get_data_loaders(wandb.config.crop_size)
 
     for _ in range(wandb.config.epochs):
         iteration(classifier, loss_fn, loader_train, optimizer)
