@@ -96,10 +96,6 @@ def run_epoch(model, loss_fn, dataloader, optimizer=None) -> None:
     )
 
     for iteration, batch in enumerate(dataloader):
-
-        if iteration == 2:
-            break
-
         # Prepare GT
         bboxes = get_cropped_bboxes(batch["image"], "RandSpatialCropSamples")
         centers = get_bbox_centers(bboxes)
@@ -154,7 +150,7 @@ def run_epoch(model, loss_fn, dataloader, optimizer=None) -> None:
 
 
 class DistanceKLMSELoss(nn.Module):
-    def __init__(self, eppsilon=0.1, mu=0.0, sd=1.0):
+    def __init__(self, eppsilon=2.0, mu=0.0, sd=1.0):
         super().__init__()
 
         self.eppsilon = eppsilon
@@ -187,7 +183,7 @@ def run_training():
     )
 
     # Define the loss function
-    loss_fn = DistanceKLMSELoss()
+    loss_fn = DistanceKLMSELoss(eppsilon=wandb.config.kld_loss_weighting)
 
     # Define the DataLoader
     train_loader, valid_loader = get_dataloaders(
@@ -202,6 +198,9 @@ def run_training():
     saver = CheckpointSaver(model_log_path, decreasing=True, top_n=3)
 
     # Start training
+
+    wandb.watch(model, log_freq=1000, log="all", log_graph=True)
+
     for epoch in range(wandb.config.epochs):
 
         wandb.log({"LR": optimizer.param_groups[0]["lr"]}, commit=False)

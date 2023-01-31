@@ -20,6 +20,10 @@ crop_size:
   desc: Size of the crop.
   value: 64
 
+kld_loss_weighting:
+  desc: This factor will be multiplied by the KLD Loss part.
+  value: 0.
+
 lr:
   desc: Learning rate
   value: 0.001
