@@ -21,21 +21,22 @@ class ClassificationHead(nn.Module):
         out_size: int = 1,
         activation: str = "relu",
         dropout_rate: float = 0.0,
-        out_sigmoid: bool = False,
+        retrain_backbone: bool = False,
     ) -> None:
         super().__init__()
 
         self.backbone = backbone.eval()
+        self.retrain_backbone = bool(retrain_backbone)
 
         self.classfier = nn.Sequential(
             nn.Linear(embedding_size, hidden_size),
             get_act_layer(activation),
             nn.Dropout(p=dropout_rate, inplace=True),
             nn.Linear(hidden_size, out_size),
-            nn.Sigmoid() if out_sigmoid else nn.Identity(),
         )
 
     def forward(self, x):
-        with torch.no_grad():
+        with torch.set_grad_enabled(self.retrain_backbone):
             x = self.backbone(x)
+
         return self.classfier(x)
