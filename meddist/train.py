@@ -70,6 +70,19 @@ class CheckpointSaver:
         self.top_model_paths = self.top_model_paths[: self.top_n]
 
 
+class MetricTracker:
+    def __init__(self, *names):
+        self.names = list(names)
+        self.values = [list() for n in self.names]
+
+    def __call__(self, *args):
+        for i, v in enumerate(args):
+            self.values[i].append(v)
+
+    def aggregate(self):
+        return {n: np.mean(v) for n, v in zip(self.names, self.values)}
+
+
 def get_max_distance(dist_mat1: torch.Tensor, dist_mat2: torch.Tensor) -> float:
     return torch.max(torch.abs(dist_mat1 - dist_mat2)).item()
 
@@ -78,10 +91,14 @@ def run_epoch(model, loss_fn, dataloader, optimizer=None) -> None:
 
     mode = "valid" if optimizer is None else "train"
 
-    running_loss = 0.0
-    running_max_dist = 0.0
+    tracker = MetricTracker(
+        f"{mode}/Loss", f"{mode}/KLLoss", f"{mode}/MSELoss", f"{mode}/MaxDistance"
+    )
 
     for iteration, batch in enumerate(dataloader):
+
+        if iteration == 2:
+            break
 
         # Prepare GT
         bboxes = get_cropped_bboxes(batch["image"], "RandSpatialCropSamples")
@@ -103,11 +120,11 @@ def run_epoch(model, loss_fn, dataloader, optimizer=None) -> None:
         # Get loss
         embeddings = embeddings.to("cpu", dtype=torch.float32)
         pred_dist_mat = torch.cdist(embeddings, embeddings, p=2)
-        loss = loss_fn(pred_dist_mat, gt_dist_mat)
+        total_loss, kl_loss, mse_loss = loss_fn(pred_dist_mat, gt_dist_mat, embeddings)
 
         # Backward pass and optimization
         if mode == "train":
-            loss.backward()
+            total_loss.backward()
             optimizer.step()
 
         # Log
@@ -115,26 +132,47 @@ def run_epoch(model, loss_fn, dataloader, optimizer=None) -> None:
 
         if mode == "train":
             wandb.log(
-                {f"{mode}/Loss": loss.item(), f"{mode}/MaxDistance": max_distance}
+                {
+                    f"{mode}/Loss": total_loss.item(),
+                    f"{mode}/KLDLoss": kl_loss.item(),
+                    f"{mode}/MSELoss": mse_loss.item(),
+                    f"{mode}/MaxDistance": max_distance,
+                }
             )
-
-        running_loss += loss.item()
-        running_max_dist = (
-            running_max_dist if running_max_dist > max_distance else max_distance
-        )
+        else:
+            tracker(total_loss.item(), kl_loss.item(), mse_loss.item(), max_distance)
 
     # Free up all memory
     torch.cuda.empty_cache()
 
-    epoch_loss = running_loss / iteration
+    metrics = tracker.aggregate()
 
     if mode == "valid":
-        wandb.log(
-            {f"{mode}/Loss": epoch_loss, f"{mode}/MaxDistance": running_max_dist},
-            commit=False,
-        )
+        wandb.log(metrics, commit=False)
 
-    return epoch_loss
+    return metrics[f"{mode}/Loss"]
+
+
+class DistanceKLMSELoss(nn.Module):
+    def __init__(self, eppsilon=0.1, mu=0.0, sd=1.0):
+        super().__init__()
+
+        self.eppsilon = eppsilon
+        self.target_dist = torch.distributions.Normal(mu, sd)
+
+        self.kldiv = nn.KLDivLoss(reduction="batchmean")
+        self.mse = nn.MSELoss()
+
+    def forward(self, pred_dist, target_dist, embedding):
+
+        normal_dist = self.target_dist.sample(embedding.shape)
+
+        kl_loss = torch.abs(self.kldiv(embedding, normal_dist))
+        mse_loss = self.mse(pred_dist, target_dist)
+
+        total_loss = mse_loss + self.eppsilon * kl_loss
+
+        return total_loss, kl_loss, mse_loss
 
 
 def run_training():
@@ -149,7 +187,7 @@ def run_training():
     )
 
     # Define the loss function
-    loss_fn = nn.MSELoss()
+    loss_fn = DistanceKLMSELoss()
 
     # Define the DataLoader
     train_loader, valid_loader = get_dataloaders(
