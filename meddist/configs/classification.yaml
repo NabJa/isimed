@@ -8,6 +8,10 @@ path_to_model:
   desc: Path to saved model state dict.
   value: "/sc-scratch/sc-scratch-gbm-radiomics/meddist_models/simple/flashing-mandu-52_3r9hmhfj/DenseNet_epoch043.pt"
 
+retrain_backbone:
+  desc: If true, the backbone will be retrain.
+  value: true
+
 output_path:
   desc: Path to save all checkpoints.
   value: "/sc-scratch/sc-scratch-gbm-radiomics/meddist_models/simple/flashing-mandu-52_3r9hmhfj/"
