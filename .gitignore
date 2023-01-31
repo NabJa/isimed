@@ -10,4 +10,5 @@ wandb
 # Remove all yaml
 *.yaml
 # Except simple.yaml
-!simple.yaml    
+!simple.yaml
+!classification.yaml
