@@ -6,15 +6,15 @@ path_to_data_split:
 
 path_to_model:
   desc: Path to saved model state dict.
-  value: "/sc-scratch/sc-scratch-gbm-radiomics/meddist_models/simple/flashing-mandu-52_3r9hmhfj/DenseNet_epoch043.pt"
+  value: "/sc-scratch/sc-scratch-gbm-radiomics/meddist_models/simple/vermilion-dragon-60_2gh75m4i/DenseNet_epoch043.pt"
 
 retrain_backbone:
   desc: If true, the backbone will be retrain.
-  value: true
+  value: false
 
 output_path:
   desc: Path to save all checkpoints.
-  value: "/sc-scratch/sc-scratch-gbm-radiomics/meddist_models/simple/flashing-mandu-52_3r9hmhfj/"
+  value: "/sc-scratch/sc-scratch-gbm-radiomics/meddist_models/simple/vermilion-dragon-60_2gh75m4i/"
 
 epochs:
   desc: Number of epochs to train over
