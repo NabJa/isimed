@@ -14,6 +14,28 @@ from torch import nn
 set_determinism()
 
 
+class DistanceKLMSELoss(nn.Module):
+    def __init__(self, eppsilon=2.0, mu=0.0, sd=1.0):
+        super().__init__()
+
+        self.eppsilon = eppsilon
+        self.target_dist = torch.distributions.Normal(mu, sd)
+
+        self.kldiv = nn.KLDivLoss(reduction="batchmean")
+        self.mse = nn.MSELoss()
+
+    def forward(self, pred_dist, target_dist, embedding):
+
+        normal_dist = self.target_dist.sample(embedding.shape)
+
+        kl_loss = torch.abs(self.kldiv(embedding, normal_dist))
+        mse_loss = self.mse(pred_dist, target_dist)
+
+        total_loss = mse_loss + self.eppsilon * kl_loss
+
+        return total_loss, kl_loss, mse_loss
+
+
 class CheckpointSaver:
     def __init__(self, dirpath, decreasing=True, top_n=5):
         """
@@ -149,28 +171,6 @@ def run_epoch(model, loss_fn, dataloader, optimizer=None) -> None:
     return metrics[f"{mode}/Loss"]
 
 
-class DistanceKLMSELoss(nn.Module):
-    def __init__(self, eppsilon=2.0, mu=0.0, sd=1.0):
-        super().__init__()
-
-        self.eppsilon = eppsilon
-        self.target_dist = torch.distributions.Normal(mu, sd)
-
-        self.kldiv = nn.KLDivLoss(reduction="batchmean")
-        self.mse = nn.MSELoss()
-
-    def forward(self, pred_dist, target_dist, embedding):
-
-        normal_dist = self.target_dist.sample(embedding.shape)
-
-        kl_loss = torch.abs(self.kldiv(embedding, normal_dist))
-        mse_loss = self.mse(pred_dist, target_dist)
-
-        total_loss = mse_loss + self.eppsilon * kl_loss
-
-        return total_loss, kl_loss, mse_loss
-
-
 def run_training():
 
     # Define the model and optimizer
@@ -191,6 +191,7 @@ def run_training():
         num_samples=wandb.config.number_of_crops,
         crop_size=wandb.config.crop_size,
         add_intensity_augmentation=wandb.config.augment,
+        batch_size=wandb.config.batch_size
     )
 
     # Define checkpoint saver
