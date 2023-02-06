@@ -238,7 +238,7 @@ def get_transformations(num_samples: int, crop_size=128, add_intensity_augmentat
 
 
 def get_dataloaders(
-    path, num_samples: int, valid_size=0.3, crop_size=128, add_intensity_augmentation=False
+    path, num_samples: int, valid_size=0.3, crop_size=128, batch_size=1, add_intensity_augmentation=False
 ):
     path = Path(path)
 
@@ -263,4 +263,4 @@ def get_dataloaders(
     train_data = Dataset(train_data, transform=train_transforms)
     valid_data = Dataset(valid_data, transform=valid_transforms)
 
-    return DataLoader(train_data), DataLoader(valid_data)
+    return DataLoader(train_data, batch_size=batch_size), DataLoader(valid_data)
