@@ -7,7 +7,6 @@ import monai.transforms as tfm
 import nibabel as nib
 import numpy as np
 import torch
-from meddist.data import DistDataset, split_segmentation_data
 from meddist.registration import DirectoryRegistration
 from monai.data import DataLoader, Dataset
 from tqdm import tqdm
@@ -148,7 +147,6 @@ def parse_args():
     parser.add_argument("-output", type=Path, default=output_dir)
     parser.add_argument("-disable_preprocess", action="store_true", default=False)
     parser.add_argument("-disable_register", action="store_true", default=False)
-    parser.add_argument("-disable_split", action="store_true", default=False)
     return parser.parse_args()
 
 
@@ -172,7 +170,3 @@ if __name__ == "__main__":
     dirreg = DirectoryRegistration(args.output)
     if not args.disable_register:
         dirreg.run_registration()
-
-    # # Data split into train, valid and test set
-    if not args.disable_split:
-        _ = split_segmentation_data(DistDataset(dirreg.output_dir), save=args.output)
