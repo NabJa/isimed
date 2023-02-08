@@ -65,7 +65,7 @@ def read_data_split(path):
 
 def get_dataloaders(
     path,
-    num_samples: int,
+    num_samples: int = 1,
     crop_size=128,
     batch_size=1,
     add_intensity_augmentation=False,

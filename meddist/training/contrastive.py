@@ -4,29 +4,10 @@ import monai.transforms as tfm
 import torch
 import wandb
 from meddist.data.loading import get_dataloaders
-from meddist.train import CheckpointSaver, MetricTracker
+from meddist.training.logs import CheckpointSaver, MetricTracker
 from monai.losses import ContrastiveLoss
 from monai.networks.nets import DenseNet
-from torch import nn
 from torch.optim import Adam, lr_scheduler
-
-# class ContrastiveLoss(nn.Module):
-#     def __init__(self, margin=2.0):
-#         super().__init__()
-#         self.margin = margin
-
-#     def forward(self, y1, y2, d=0):
-#         """
-#         d = 0 means y1 and y2 are supposed to be same
-#         d = 1 means y1 and y2 are supposed to be different
-#         """
-
-#         euc_dist = nn.functional.pairwise_distance(y1, y2, p=2.0)
-#         if d == 1:
-#             euc_dist = self.margin - euc_dist  # sort of reverse distance
-#             euc_dist = torch.clamp(euc_dist, min=0.0, max=None)
-
-#         return torch.mean(torch.pow(euc_dist, 2))
 
 
 def get_contrastive_transform(crops: int = 2, crop_size: int = 32):
@@ -47,8 +28,8 @@ def get_contrastive_transform(crops: int = 2, crop_size: int = 32):
             ),
             tfm.CopyItemsd(
                 keys=["image"],
-                times=2,
-                names=["gt_image", "image_2"],
+                times=1,
+                names=["image_2"],
                 allow_missing_keys=False,
             ),
             tfm.OneOf(
@@ -104,14 +85,11 @@ def run_epoch(model, loss_fn, dataloader, optimizer=None):
 
     tracker = MetricTracker(f"{mode}/Loss")
 
-    for iteration, batch in enumerate(dataloader):
+    for batch in dataloader:
 
         # Prepare data
-        inputs, inputs_2, gt_input = (
-            batch["image"].to("cuda"),
-            batch["image_2"].to("cuda"),
-            batch["gt_image"].to("cuda"),
-        )
+        inputs = batch["image"].to("cuda")
+        inputs_2 = batch["image_2"].to("cuda")
 
         # Prepare forward pass
         if mode == "train":
@@ -123,7 +101,7 @@ def run_epoch(model, loss_fn, dataloader, optimizer=None):
             emb2: torch.Tensor = model(inputs_2)
 
         # Get loss
-        emb1, emb2 = emb1.to("cpu"), emb2.to("cpu")
+        emb1, emb2 = emb1.to("cpu").float(), emb2.to("cpu").float()
         loss = loss_fn(emb1, emb2)
 
         # Backward pass and optimization
@@ -151,23 +129,27 @@ def run_epoch(model, loss_fn, dataloader, optimizer=None):
     return metrics[f"{mode}/Loss"]
 
 
-def train(out_channels: int = 1024):
+def train():
 
-    model = DenseNet(spatial_dims=3, in_channels=1, out_channels=out_channels)
+    model = DenseNet(
+        spatial_dims=3, in_channels=1, out_channels=wandb.config.embedding_size
+    ).to("cuda")
 
-    optimizer = Adam(model.parameters())
+    optimizer = Adam(model.parameters(), lr=wandb.config.lr)
 
     scheduler = lr_scheduler.ExponentialLR(optimizer, gamma=0.9, verbose=True)
 
-    loss_fn = ContrastiveLoss(temperature=0.05)
+    loss_fn = ContrastiveLoss(temperature=wandb.config.temperature)
 
     train_loader, valid_loader = get_dataloaders(
         wandb.config.path_to_data_split,
-        num_samples=wandb.config.number_of_crops,
-        crop_size=wandb.config.crop_size,
-        add_intensity_augmentation=wandb.config.augment,
         batch_size=wandb.config.batch_size,
-        transform=get_contrastive_transform(),
+        train_transform=get_contrastive_transform(
+            crops=wandb.config.number_of_crops, crop_size=wandb.config.crop_size
+        ),
+        valid_transform=get_contrastive_transform(
+            crops=wandb.config.number_of_crops, crop_size=wandb.config.crop_size
+        ),
     )
 
     model_log_path = Path(wandb.config.output_path) / f"{wandb.run.name}_{wandb.run.id}"

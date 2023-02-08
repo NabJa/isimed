@@ -9,7 +9,7 @@ def read_args():
         "-config",
         type=str,
         help="Path to config file.",
-        default="/sc-projects/sc-proj-gbm-radiomics/whole-body/meddistssl/meddist/configs/simple.yaml",
+        default="/sc-projects/sc-proj-gbm-radiomics/whole-body/meddistssl/configs/simple.yaml",
     )
     return parser.parse_args()
 

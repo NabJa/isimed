@@ -1,5 +1,9 @@
 # Basic config file to train MedDistSLL model.
 
+model:
+  desc: Model type to be trained. Choose between simclr, meddist, ...
+  value: meddist
+
 path_to_data_split:
   desc: Path to Pickle file containing train and validation paths for images that should be trained on.
   value: "/sc-scratch/sc-scratch-gbm-radiomics/tcia/manifest-1654187277763/nifti/FDG-PET-CT-Lesions-trans/split.pkl"
@@ -19,6 +23,10 @@ number_of_crops:
 crop_size:
   desc: Size of the crop.
   value: 64
+
+batch_size:
+  desc: From how many patients we will take the crops. ATTENTION The total batch size is batch_size * number_of_crops
+  value: 8
 
 kld_loss_weighting:
   desc: This factor will be multiplied by the KLD Loss part.

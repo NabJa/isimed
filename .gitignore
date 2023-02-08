@@ -19,3 +19,4 @@ data_splits
 # Except simple.yaml
 !simple.yaml
 !classification.yaml
+!simclr.yaml
