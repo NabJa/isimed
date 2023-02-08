@@ -10,7 +10,6 @@ from sklearn.model_selection import train_test_split
 MonaiData = List[dict]
 
 
-
 class DistanceDataset:
     def __init__(self, path):
         self.path = Path(path)
@@ -57,35 +56,35 @@ def get_transformations(
     return train_transforms, valid_transforms
 
 
+def read_data_split(path):
+    with open(path, mode="rb") as file:
+        split = pickle.load(file)
+
+    return split["train"], split["validation"], split["test"]
+
+
 def get_dataloaders(
     path,
     num_samples: int,
-    valid_size=0.3,
     crop_size=128,
     batch_size=1,
     add_intensity_augmentation=False,
+    train_transform=None,
+    valid_transform=None,
 ):
-    path = Path(path)
+    train_data, valid_data, _ = read_data_split(path)
 
-    if path.is_file():
-
-        with open(path, mode="rb") as file:
-            split = pickle.load(file)
-
-        train_data = split["train"]
-        valid_data = split["validation"]
-
-    else:
-        data = list(DistanceDataset(path))
-        assert len(data) > 1, f"Dataset too small. Found size: {len(data)}"
-
-        train_data, valid_data = train_test_split(data, test_size=valid_size)
-
-    train_transforms, valid_transforms = get_transformations(
+    _train_transform, _valid_transform = get_transformations(
         num_samples, crop_size, add_intensity_augmentation
     )
 
-    train_data = Dataset(train_data, transform=train_transforms)
-    valid_data = Dataset(valid_data, transform=valid_transforms)
+    train_data = Dataset(
+        train_data,
+        transform=_train_transform if train_transform is None else train_transform,
+    )
+    valid_data = Dataset(
+        valid_data,
+        transform=_valid_transform if valid_transform is None else valid_transform,
+    )
 
     return DataLoader(train_data, batch_size=batch_size), DataLoader(valid_data)
