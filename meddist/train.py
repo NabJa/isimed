@@ -5,7 +5,7 @@ import numpy as np
 import torch
 import wandb
 from meddist.config import init_wandb
-from meddist.data import get_dataloaders
+from meddist.data.loading import get_dataloaders
 from meddist.dist import get_bbox_centers, get_cropped_bboxes
 from monai.networks.nets import DenseNet
 from monai.utils.misc import set_determinism
@@ -191,7 +191,7 @@ def run_training():
         num_samples=wandb.config.number_of_crops,
         crop_size=wandb.config.crop_size,
         add_intensity_augmentation=wandb.config.augment,
-        batch_size=wandb.config.batch_size
+        batch_size=wandb.config.batch_size,
     )
 
     # Define checkpoint saver
