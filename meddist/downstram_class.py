@@ -122,7 +122,7 @@ def init():
         "-config",
         type=str,
         help="Path to config file.",
-        default="/sc-projects/sc-proj-gbm-radiomics/whole-body/meddistssl/meddist/configs/classification.yaml",
+        default="/sc-projects/sc-proj-gbm-radiomics/whole-body/meddistssl/configs/classification.yaml",
     )
     args = parser.parse_args()
 
