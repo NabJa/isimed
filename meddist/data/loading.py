@@ -74,17 +74,23 @@ def get_dataloaders(
 ):
     train_data, valid_data, _ = read_data_split(path)
 
+    # If batch size > 1, all keys in data are concatenated. If some have a "label" and some dont, this causes an error.
+    # This is fixed by just added the "label" key with an empty string so they can be concatenated to a list.
+    for x in train_data:
+        if "label" not in x:
+            x["label"] = ""
+
     _train_transform, _valid_transform = get_transformations(
         num_samples, crop_size, add_intensity_augmentation
     )
 
-    train_data = Dataset(
+    train_dataset = Dataset(
         train_data,
         transform=_train_transform if train_transform is None else train_transform,
     )
-    valid_data = Dataset(
+    valid_dataset = Dataset(
         valid_data,
         transform=_valid_transform if valid_transform is None else valid_transform,
     )
 
-    return DataLoader(train_data, batch_size=batch_size), DataLoader(valid_data)
+    return DataLoader(train_dataset, batch_size=batch_size), DataLoader(valid_dataset)
