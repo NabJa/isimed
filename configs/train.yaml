@@ -1,5 +1,6 @@
 # Basic config file to train MedDistSLL model.
 
+# General settings
 model:
   desc: Model type to be trained. Choose between simclr, meddist, ...
   value: meddist
@@ -8,14 +9,15 @@ data:
   desc: Dataset to train on. This can be brats or autopet.
   value: autopet
 
-path_to_data_split:
-  desc: Path to Pickle file containing train and validation paths for images that should be trained on.
-  value: "/sc-projects/sc-proj-gbm-radiomics/whole-body/meddistssl/data_splits/autopep_split.pkl"
+embedding_size:
+  desc: Size of the feature vector of the trained model.
+  value: 1024
 
-output_path:
-  desc: Path to save all checkpoints.
-  value: "/sc-scratch/sc-scratch-gbm-radiomics/meddist_models/simple"
+crop_size:
+  desc: Size of the crop.
+  value: 32
 
+# SSL settings
 epochs:
   desc: Number of epochs to train over
   value: 50
@@ -23,10 +25,6 @@ epochs:
 number_of_crops:
   desc: Crops sampled per patient. This is the same as batch size in this training logic.
   value: 256
-
-crop_size:
-  desc: Size of the crop.
-  value: 32
 
 batch_size:
   desc: From how many patients we will take the crops. ATTENTION The total batch size is batch_size * number_of_crops
@@ -36,10 +34,6 @@ lr:
   desc: Learning rate
   value: 0.001
 
-embedding_size:
-  desc: Size of the feature vector of the trained model.
-  value: 1024
-
 augment:
   desc: Whether to add simple intensity augmentation. They are applied on the full image.
   value: False
@@ -47,3 +41,9 @@ augment:
 temperature:
   desc: In SimCLR this is as in paper. In meddist this is a weighing of the KL-Divergence.
   value: 0.05
+
+
+# Setting for downstream task 
+retrain_backbone:
+  desc: If true, the backbone will be retrain.
+  value: false

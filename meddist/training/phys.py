@@ -97,7 +97,7 @@ def run_epoch(model, loss_fn, dataloader, optimizer=None) -> None:
     return metrics[f"{mode}/Loss"]
 
 
-def train(path_to_data_split):
+def train(path_to_data_split, model_log_path):
 
     # Define the model and optimizer
     model = DenseNet(
@@ -121,7 +121,6 @@ def train(path_to_data_split):
     )
 
     # Define checkpoint saver
-    model_log_path = Path(wandb.config.output_path) / f"{wandb.run.name}_{wandb.run.id}"
     saver = CheckpointSaver(model_log_path, decreasing=True, top_n=3)
 
     # Start training

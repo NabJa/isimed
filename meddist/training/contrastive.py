@@ -129,7 +129,7 @@ def run_epoch(model, loss_fn, dataloader, optimizer=None):
     return metrics[f"{mode}/Loss"]
 
 
-def train(path_to_data_split):
+def train(path_to_data_split, model_log_path):
 
     model = DenseNet(
         spatial_dims=3, in_channels=1, out_channels=wandb.config.embedding_size
@@ -152,7 +152,6 @@ def train(path_to_data_split):
         ),
     )
 
-    model_log_path = Path(wandb.config.output_path) / f"{wandb.run.name}_{wandb.run.id}"
     saver = CheckpointSaver(model_log_path, decreasing=True, top_n=3)
 
     wandb.watch(model, log_freq=1000, log="all", log_graph=True)

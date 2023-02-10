@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import wandb
 from meddist.config import init_wandb
 from meddist.training import barlow, contrastive, phys
@@ -12,20 +14,28 @@ if __name__ == "__main__":
 
     if wandb.config.data == "brats":
         path_to_data_split = "/sc-projects/sc-proj-gbm-radiomics/whole-body/meddistssl/data_splits/brats_split.pkl"
+
     elif wandb.config.data == "autopep":
         path_to_data_split = "/sc-projects/sc-proj-gbm-radiomics/whole-body/meddistssl/data_splits/autopep_split.pkl"
+        
     else:
         raise NotImplementedError(
             f"Dataset ' {wandb.config.data}' unknown. Choose between brats and autopet."
         )
 
     # New training run
+
+    model_log_path = Path(f"sc-scratch/sc-scratch-gbm-radiomics/meddist_models/{wandb.config.model}_{wandb.config.data}/{wandb.run.name}_{wandb.run.id}")
+
     if wandb.config.model == "meddist":
-        phys.train(path_to_data_split)
+        phys.train(path_to_data_split, model_log_path)
+
     elif wandb.config.model == "simclr":
-        contrastive.train(path_to_data_split)
+        contrastive.train(path_to_data_split, model_log_path)
+
     elif wandb.config.model == "barlow":
-        barlow.train(path_to_data_split)
+        barlow.train(path_to_data_split, model_log_path)
+
     else:
         raise NotImplementedError(
             f"Model '{wandb.config.model}' unknown. Choose between meddist, simclr and barlow."
