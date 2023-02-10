@@ -14,6 +14,6 @@ def read_args():
     return parser.parse_args()
 
 
-def init_wandb():
+def init_wandb(project_name="Meddist"):
     args = read_args()
-    wandb.init(project="Meddist", config=args.config)
+    wandb.init(project=project_name, config=args.config)

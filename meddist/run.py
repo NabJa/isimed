@@ -8,7 +8,7 @@ if __name__ == "__main__":
     set_determinism()
 
     # Read config file specifed in command line arguments.
-    init_wandb()
+    init_wandb(project_name="Meddist")
 
     if wandb.config.data == "brats":
         path_to_data_split = "/sc-projects/sc-proj-gbm-radiomics/whole-body/meddistssl/data_splits/brats_split.pkl"
