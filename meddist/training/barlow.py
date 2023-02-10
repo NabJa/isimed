@@ -97,7 +97,7 @@ def run_epoch(model, loss_fn, dataloader, optimizer=None):
     return metrics[f"{mode}/Loss"]
 
 
-def train():
+def train(path_to_data_split):
 
     model = DenseNet(
         spatial_dims=3, in_channels=1, out_channels=wandb.config.embedding_size
@@ -110,7 +110,7 @@ def train():
     loss_fn = BTLoss(embedding_size=wandb.config.embedding_size)
 
     train_loader, valid_loader = get_dataloaders(
-        wandb.config.path_to_data_split,
+        path_to_data_split,
         batch_size=wandb.config.batch_size,
         train_transform=get_contrastive_transform(
             crops=wandb.config.number_of_crops, crop_size=wandb.config.crop_size

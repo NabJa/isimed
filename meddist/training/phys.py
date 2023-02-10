@@ -97,7 +97,7 @@ def run_epoch(model, loss_fn, dataloader, optimizer=None) -> None:
     return metrics[f"{mode}/Loss"]
 
 
-def train():
+def train(path_to_data_split):
 
     # Define the model and optimizer
     model = DenseNet(
@@ -109,11 +109,11 @@ def train():
     )
 
     # Define the loss function
-    loss_fn = DistanceKLMSELoss(eppsilon=wandb.config.kld_loss_weighting)
+    loss_fn = DistanceKLMSELoss(eppsilon=wandb.config.temperatur)
 
     # Define the DataLoader
     train_loader, valid_loader = get_dataloaders(
-        wandb.config.path_to_data_split,
+        path_to_data_split,
         num_samples=wandb.config.number_of_crops,
         crop_size=wandb.config.crop_size,
         add_intensity_augmentation=wandb.config.augment,
