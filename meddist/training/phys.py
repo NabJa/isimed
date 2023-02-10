@@ -1,7 +1,6 @@
-from pathlib import Path
-
 import torch
 import wandb
+from meddist import downstram_class
 from meddist.data.loading import get_dataloaders
 from meddist.dist import get_bbox_centers, get_cropped_bboxes
 from meddist.training.logs import CheckpointSaver, MetricTracker
@@ -141,3 +140,6 @@ def train(path_to_data_split, model_log_path):
             saver(model, epoch, valid_loss)
 
         scheduler.step()
+
+        if (epoch + 1) % wandb.config.downstream_every_n_epochs == 0:
+            downstram_class.train(model_log_path)
