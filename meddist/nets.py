@@ -40,3 +40,22 @@ class ClassificationHead(nn.Module):
             x = self.backbone(x)
 
         return self.classfier(x)
+
+
+class LinearHead(nn.Module):
+    def __init__(
+        self,
+        backbone: nn.Module,
+        embedding_size=1024,
+        out_classes=1,
+        retrain_backbone: bool = False,
+    ) -> None:
+        super().__init__()
+        self.backbone = backbone
+        self.retrain_backbone = retrain_backbone
+        self.linear = nn.Linear(embedding_size, out_classes)
+
+    def forward(self, x):
+        with torch.set_grad_enabled(self.retrain_backbone):
+            x = self.backbone(x)
+        return self.linear(x)

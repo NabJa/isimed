@@ -4,7 +4,7 @@ import pickle
 import monai.transforms as tfm
 import torch
 import wandb
-from meddist.nets import ClassificationHead, load_densenet
+from meddist.nets import ClassificationHead, LinearHead, load_densenet
 from meddist.transforms import GetClassesFromCropsd
 from monai.data import DataLoader, Dataset
 from monai.metrics import ConfusionMatrixMetric
@@ -100,9 +100,7 @@ def iteration(model: nn.Module, loss_fn, loader, optimizer=None):
 
 def train():
 
-    classifier = ClassificationHead(load_densenet(wandb.config.path_to_model)).to(
-        "cuda"
-    )
+    classifier = LinearHead(load_densenet(wandb.config.path_to_model), retrain_backbone=wandb.config.retrain_backbone).to("cuda")
     optimizer = torch.optim.Adam(classifier.parameters())
     loss_fn = nn.BCEWithLogitsLoss(
         pos_weight=torch.tensor(float(wandb.config.pos_weight))
