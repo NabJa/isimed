@@ -155,7 +155,7 @@ def train(path_to_data_split, model_log_path):
 
     saver = CheckpointSaver(model_log_path, decreasing=True, top_n=3)
 
-    wandb.watch(model, log_freq=1000, log="all", log_graph=True)
+    # wandb.watch(model, log_freq=1000, log="all", log_graph=False)
 
     for epoch in range(wandb.config.epochs):
 
@@ -173,4 +173,4 @@ def train(path_to_data_split, model_log_path):
         scheduler.step()
 
     if (epoch + 1) % wandb.config.downstream_every_n_epochs == 0:
-        downstram_class.train(model_log_path)
+        downstram_class.train(path_to_data_split, model_log_path)

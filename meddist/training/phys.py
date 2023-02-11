@@ -42,7 +42,8 @@ def run_epoch(model, loss_fn, dataloader, optimizer=None) -> None:
         f"{mode}/Loss", f"{mode}/KLLoss", f"{mode}/MSELoss", f"{mode}/MaxDistance"
     )
 
-    for iteration, batch in enumerate(dataloader):
+    for batch in dataloader:
+
         # Prepare GT
         bboxes = get_cropped_bboxes(batch["image"], "RandSpatialCropSamples")
         centers = get_bbox_centers(bboxes)
@@ -82,14 +83,13 @@ def run_epoch(model, loss_fn, dataloader, optimizer=None) -> None:
                     f"{mode}/MaxDistance": max_distance,
                 }
             )
-        else:
-            tracker(total_loss.item(), kl_loss.item(), mse_loss.item(), max_distance)
+
+        tracker(total_loss.item(), kl_loss.item(), mse_loss.item(), max_distance)
 
     # Free up all memory
     torch.cuda.empty_cache()
 
     metrics = tracker.aggregate()
-
     if mode == "valid":
         wandb.log(metrics, commit=False)
 
@@ -108,7 +108,7 @@ def train(path_to_data_split, model_log_path):
     )
 
     # Define the loss function
-    loss_fn = DistanceKLMSELoss(eppsilon=wandb.config.temperatur)
+    loss_fn = DistanceKLMSELoss(eppsilon=wandb.config.temperature)
 
     # Define the DataLoader
     train_loader, valid_loader = get_dataloaders(
@@ -124,7 +124,7 @@ def train(path_to_data_split, model_log_path):
 
     # Start training
 
-    wandb.watch(model, log_freq=1000, log="all", log_graph=True)
+    # wandb.watch(model, log_freq=1000, log="all", log_graph=False)
 
     for epoch in range(wandb.config.epochs):
 
@@ -136,10 +136,10 @@ def train(path_to_data_split, model_log_path):
             valid_loss = run_epoch(model, loss_fn, valid_loader)
 
         # Save checkpoints only 30% into the training. This prevents saving to early models.
-        if epoch > wandb.config.epochs * 0.3:
-            saver(model, epoch, valid_loss)
+        # if epoch > wandb.config.epochs * 0.3:
+        saver(model, epoch, valid_loss)
 
         scheduler.step()
 
-        if (epoch + 1) % wandb.config.downstream_every_n_epochs == 0:
-            downstram_class.train(model_log_path)
+        # if (epoch + 1) % wandb.config.downstream_every_n_epochs == 0:
+        downstram_class.train(path_to_data_split, model_log_path)

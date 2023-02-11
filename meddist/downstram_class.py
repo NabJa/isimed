@@ -24,8 +24,9 @@ def get_latest_model(path_to_model_directory):
     return sorted_models[-1]
 
 
-def get_data_loaders(crop_size=64):
-    with open(wandb.config.path_to_data_split, mode="rb") as file:
+def get_data_loaders(path_to_data_split, crop_size=64):
+
+    with open(path_to_data_split, mode="rb") as file:
         split = pickle.load(file)
 
     transform = tfm.Compose(
@@ -51,10 +52,10 @@ def get_data_loaders(crop_size=64):
     )
 
     dataset_valid = Dataset(split["validation"], transform=transform)
-    loader_valid = DataLoader(dataset_valid, num_workers=8)
+    loader_valid = DataLoader(dataset_valid)
 
     dataset_train = Dataset(split["test"], transform=transform)
-    loader_train = DataLoader(dataset_train, num_workers=8)
+    loader_train = DataLoader(dataset_train)
 
     return loader_train, loader_valid
 
@@ -92,30 +93,22 @@ def run_epoch(
             loss.backward()
             optimizer.step()
 
+        # Loss
         running_loss += loss.item()
 
-        if mode == "train":
-            wandb.log({f"{mode}/Loss": loss.item()})
-
+        # Confusion matrix
         pred_binary = (nn.Sigmoid()(pred) > 0.5).int()
-
         predictions += pred_binary.flatten().tolist()
-
         confusion(pred_binary, label)
 
+    # Aggregate all
     metrics = confusion.aggregate()
+    running_loss = running_loss / i
 
-    # metric_dict = dict(zip([f"{mode}/{x}" for x in metric_names], metrics))
-
-    # if mode == "valid":
-    #     metric_dict[f"{mode}/Loss"] = running_loss / i
-
-    # wandb.log(metric_dict, commit=False)
-
-    return metrics, running_loss / i
+    return metrics, running_loss
 
 
-def train(path_to_model_directory):
+def train(path_to_data_split, path_to_model_directory):
 
     metric_names = ["sensitivity", "specificity", "accuracy", "f1 score"]
     path_to_model = get_latest_model(path_to_model_directory)
@@ -129,7 +122,9 @@ def train(path_to_model_directory):
         pos_weight=torch.tensor(float(wandb.config.pos_weight))
     )
 
-    loader_train, loader_valid = get_data_loaders(wandb.config.crop_size)
+    loader_train, loader_valid = get_data_loaders(
+        path_to_data_split, wandb.config.crop_size
+    )
 
     all_metrics, all_losses, epochs = [], [], []
     for epoch in range(wandb.config.epochs):
@@ -142,9 +137,11 @@ def train(path_to_model_directory):
 
     # Log only best epoch
     best_epoch = np.argmin(all_losses)
-    log_dict = dict(zip(metric_names, all_metrics[best_epoch]))
-    log_dict["Loss"] = all_losses[best_epoch]
-    log_dict["Best epoch"] = epochs[best_epoch]
+    log_dict = {
+        f"Downstream/{k}": v for k, v in zip(metric_names, all_metrics[best_epoch])
+    }
+    log_dict["Downstream/Loss"] = all_losses[best_epoch]
+    log_dict["Downstream/Best epoch"] = epochs[best_epoch]
 
     wandb.log(log_dict, commit=False)
 
@@ -160,8 +157,3 @@ def init():
     args = parser.parse_args()
 
     wandb.init(project="Meddist_Class", config=args.config)
-
-
-if __name__ == "__main__":
-    init()
-    train()

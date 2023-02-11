@@ -22,15 +22,15 @@ crop_size:
 # SSL settings
 epochs:
   desc: Number of epochs to train over
-  value: 50
+  value: 1
 
 number_of_crops:
   desc: Crops sampled per patient. This is the same as batch size in this training logic.
-  value: 256
+  value: 128
 
 batch_size:
   desc: From how many patients we will take the crops. ATTENTION The total batch size is batch_size * number_of_crops
-  value: 16
+  value: 1
 
 lr:
   desc: Learning rate
@@ -64,4 +64,4 @@ downstream_number_of_crops:
 
 downstream_epochs:
   desc: Epochs.
-  value: 50
+  value: 1
