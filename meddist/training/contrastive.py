@@ -116,14 +116,13 @@ def run_epoch(model, loss_fn, dataloader, optimizer=None):
                     f"{mode}/Loss": loss.item(),
                 }
             )
-        else:
-            tracker(loss.item())
+
+        tracker(loss.item())
 
     # Free up all memory
     torch.cuda.empty_cache()
 
     metrics = tracker.aggregate()
-
     if mode == "valid":
         wandb.log(metrics, commit=False)
 
