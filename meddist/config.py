@@ -3,7 +3,7 @@ import argparse
 import wandb
 import yaml
 
-ARGUMENTS = [("data", str), ("model", str), ("crop_size", int)]
+ARGUMENTS = [("data", str), ("model", str), ("crop_size", int), ("temperature", float), ("batch_size", int)]
 
 
 def read_yaml(path):
@@ -33,4 +33,4 @@ def init_wandb(project_name="Meddist"):
     for arg, arg_type in ARGUMENTS:
         argument = args.__getattribute__(arg)
         if argument is not None:
-            wandb.config.update({arg: arg_type(argument)})
+            wandb.config.update({arg: arg_type(argument)}, allow_val_change=True)
