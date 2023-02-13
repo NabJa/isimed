@@ -138,5 +138,6 @@ def train(path_to_data_split, model_log_path):
 
         scheduler.step()
 
-        if (epoch + 1) % wandb.config.downstream_every_n_epochs == 0:
-            downstram_class.train(path_to_data_split, model_log_path)
+        if wandb.config.run_downsream_task:
+            if (epoch + 1) % wandb.config.downstream_every_n_epochs == 0:
+                downstram_class.train(path_to_data_split, model_log_path)
