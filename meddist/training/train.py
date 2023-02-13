@@ -12,6 +12,7 @@ MODEL_PREP = {
     "barlow": (forward_barlow, prepare_barlow),
     "simclr": (forward_simclr, prepare_simclr),
 }
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 
 def run_epoch(forward, model, loss_fn, dataloader, optimizer=None) -> None:
@@ -20,13 +21,12 @@ def run_epoch(forward, model, loss_fn, dataloader, optimizer=None) -> None:
 
     tracker = MetricTracker(f"{mode}/Loss")
 
-    for batch in dataloader:
-
+    for i, batch in enumerate(dataloader):
         # Prepare forward pass
         if mode == "train":
             optimizer.zero_grad()
 
-        loss, metrics = forward(model, batch, loss_fn, mode)
+        loss, metrics = forward(model, batch, loss_fn, mode, DEVICE)
 
         # Backward pass and optimization
         if mode == "train":
@@ -47,12 +47,12 @@ def run_epoch(forward, model, loss_fn, dataloader, optimizer=None) -> None:
     return aggregated[f"{mode}/Loss"]
 
 
-def train(model_type, path_to_data_split, model_log_path):
+def train(path_to_data_split, model_log_path):
 
     # Define the model and optimizer
     model = DenseNet(
         spatial_dims=3, in_channels=1, out_channels=wandb.config.embedding_size
-    ).to("cuda")
+    ).to(DEVICE)
 
     optimizer = torch.optim.AdamW(model.parameters(), lr=wandb.config.lr)
 
@@ -61,7 +61,7 @@ def train(model_type, path_to_data_split, model_log_path):
     )
 
     # Define the loss function and loaders
-    forward, prep = MODEL_PREP[model_type]
+    forward, prep = MODEL_PREP[wandb.config.model]
 
     loss_fn, train_loader, valid_loader = prep(path_to_data_split)
 

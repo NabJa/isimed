@@ -31,7 +31,7 @@ def get_max_distance(dist_mat1: torch.Tensor, dist_mat2: torch.Tensor) -> float:
     return torch.max(torch.abs(dist_mat1 - dist_mat2)).item()
 
 
-def forward_meddist(model, batch, loss_fn, mode):
+def forward_meddist(model, batch, loss_fn, mode, device="cuda"):
     # Prepare GT
     bboxes = get_cropped_bboxes(batch["image"], "RandSpatialCropSamples")
     centers = get_bbox_centers(bboxes)
@@ -40,10 +40,10 @@ def forward_meddist(model, batch, loss_fn, mode):
         torch.tensor(centers), torch.tensor(centers), p=2.0
     ).float()
 
-    image = batch["image"].to("cuda")
+    image = batch["image"].to(device)
 
     # Forward pass
-    with torch.autocast(device_type="cuda"):
+    with torch.autocast(device_type=device):
         embeddings: torch.Tensor = model(image)
 
     # Get loss

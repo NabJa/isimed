@@ -44,13 +44,13 @@ class BTLoss(nn.Module):
         return loss, invariant_loss, covariant_loss
 
 
-def forward_barlow(model, batch, loss_fn, mode):
+def forward_barlow(model, batch, loss_fn, mode, device="cuda"):
     # Prepare data
-    inputs = batch["image"].to("cuda")
-    inputs_2 = batch["image_2"].to("cuda")
+    inputs = batch["image"].to(device)
+    inputs_2 = batch["image_2"].to(device)
 
     # Forward pass
-    with torch.autocast(device_type="cuda"):
+    with torch.autocast(device_type=device):
         emb1: torch.Tensor = model(inputs)
         emb2: torch.Tensor = model(inputs_2)
 

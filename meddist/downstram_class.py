@@ -16,6 +16,8 @@ from torch import nn
 torch.multiprocessing.set_sharing_strategy("file_system")
 set_determinism()
 
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+
 
 def get_latest_model(path_to_model_directory):
     directory = Path(path_to_model_directory).iterdir()
@@ -80,7 +82,7 @@ def run_epoch(
     predictions = []
 
     for i, batch in enumerate(loader):
-        image = batch["image"].to("cuda")
+        image = batch["image"].to(DEVICE)
         label = batch["has_pos_voxels"].float().unsqueeze(1)
 
         if mode == "train":
@@ -116,7 +118,7 @@ def train(path_to_data_split, path_to_model_directory):
     classifier = LinearHead(
         load_densenet(path_to_model),
         retrain_backbone=wandb.config.retrain_backbone,
-    ).to("cuda")
+    ).to(DEVICE)
     optimizer = torch.optim.Adam(classifier.parameters())
     loss_fn = nn.BCEWithLogitsLoss(
         pos_weight=torch.tensor(float(wandb.config.pos_weight))
