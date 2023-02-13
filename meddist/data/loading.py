@@ -1,11 +1,9 @@
 import pickle
-from multiprocessing import Pool
 from pathlib import Path
 from typing import List
 
 import monai.transforms as tfm
 from monai.data import DataLoader, Dataset
-from sklearn.model_selection import train_test_split
 
 MonaiData = List[dict]
 
@@ -68,6 +66,7 @@ def get_dataloaders(
     num_samples: int = 1,
     crop_size=128,
     batch_size=1,
+    num_workers=8,
     add_intensity_augmentation=False,
     train_transform=None,
     valid_transform=None,
@@ -93,4 +92,4 @@ def get_dataloaders(
         transform=_valid_transform if valid_transform is None else valid_transform,
     )
 
-    return DataLoader(train_dataset, batch_size=batch_size, num_workers=8), DataLoader(valid_dataset, num_workers=8)
+    return DataLoader(train_dataset, batch_size=batch_size, num_workers=num_workers), DataLoader(valid_dataset, num_workers=num_workers)

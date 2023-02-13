@@ -11,6 +11,12 @@ data:
   desc: Dataset to train on. This can be brats or autopet.
   value: brats
 
+# General settings
+num_workers:
+  desc: Num of workers for dataloader.
+  value: 1
+
+# Model settings
 embedding_size:
   desc: Size of the feature vector of the trained model.
   value: 1024
@@ -22,7 +28,7 @@ crop_size:
 # SSL settings
 epochs:
   desc: Number of epochs to train over
-  value: 50
+  value: 1
 
 number_of_crops:
   desc: Crops sampled per patient. This is the same as batch size in this training logic.
@@ -52,7 +58,7 @@ run_downsream_task:
 
 downstream_every_n_epochs:
   desc: When to do the downstram classification.
-  value: 2
+  value: 1
 
 retrain_backbone:
   desc: If true, the backbone will be retrain.
