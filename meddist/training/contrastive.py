@@ -166,8 +166,8 @@ def train(path_to_data_split, model_log_path):
             valid_loss = run_epoch(model, loss_fn, valid_loader)
 
         # Save checkpoints only 30% into the training. This prevents saving to early models.
-        if epoch > wandb.config.epochs * 0.3:
-            saver(model, epoch, valid_loss)
+        # if epoch > wandb.config.epochs * 0.3:
+        saver(model, epoch, valid_loss)
 
         scheduler.step()
 

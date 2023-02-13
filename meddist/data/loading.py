@@ -93,4 +93,4 @@ def get_dataloaders(
         transform=_valid_transform if valid_transform is None else valid_transform,
     )
 
-    return DataLoader(train_dataset, batch_size=batch_size), DataLoader(valid_dataset)
+    return DataLoader(train_dataset, batch_size=batch_size, num_workers=8), DataLoader(valid_dataset, num_workers=8)
