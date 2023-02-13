@@ -1,14 +1,8 @@
-from pathlib import Path
-
 import monai.transforms as tfm
 import torch
 import wandb
-from meddist import downstram_class
 from meddist.data.loading import get_dataloaders
-from meddist.training.logs import CheckpointSaver, MetricTracker
 from monai.losses import ContrastiveLoss
-from monai.networks.nets import DenseNet
-from torch.optim import Adam, lr_scheduler
 
 
 def get_contrastive_transform(crops: int = 2, crop_size: int = 32):
@@ -81,64 +75,24 @@ def get_contrastive_transform(crops: int = 2, crop_size: int = 32):
     )
 
 
-def run_epoch(model, loss_fn, dataloader, optimizer=None):
-    mode = "valid" if optimizer is None else "train"
+def forward_simclr(model, batch, loss_fn, mode=None):
+    # Prepare data
+    inputs = batch["image"].to("cuda")
+    inputs_2 = batch["image_2"].to("cuda")
 
-    tracker = MetricTracker(f"{mode}/Loss")
+    # Forward pass
+    with torch.autocast(device_type="cuda"):
+        emb1: torch.Tensor = model(inputs)
+        emb2: torch.Tensor = model(inputs_2)
 
-    for batch in dataloader:
+    # Get loss
+    emb1, emb2 = emb1.to("cpu").float(), emb2.to("cpu").float()
+    loss = loss_fn(emb1, emb2)
 
-        # Prepare data
-        inputs = batch["image"].to("cuda")
-        inputs_2 = batch["image_2"].to("cuda")
-
-        # Prepare forward pass
-        if mode == "train":
-            optimizer.zero_grad()
-
-        # Forward pass
-        with torch.autocast(device_type="cuda"):
-            emb1: torch.Tensor = model(inputs)
-            emb2: torch.Tensor = model(inputs_2)
-
-        # Get loss
-        emb1, emb2 = emb1.to("cpu").float(), emb2.to("cpu").float()
-        loss = loss_fn(emb1, emb2)
-
-        # Backward pass and optimization
-        if mode == "train":
-            loss.backward()
-            optimizer.step()
-
-        if mode == "train":
-            wandb.log(
-                {
-                    f"{mode}/Loss": loss.item(),
-                }
-            )
-
-        tracker(loss.item())
-
-    # Free up all memory
-    torch.cuda.empty_cache()
-
-    metrics = tracker.aggregate()
-    if mode == "valid":
-        wandb.log(metrics, commit=False)
-
-    return metrics[f"{mode}/Loss"]
+    return loss, {}
 
 
-def train(path_to_data_split, model_log_path):
-
-    model = DenseNet(
-        spatial_dims=3, in_channels=1, out_channels=wandb.config.embedding_size
-    ).to("cuda")
-
-    optimizer = Adam(model.parameters(), lr=wandb.config.lr)
-
-    scheduler = lr_scheduler.ExponentialLR(optimizer, gamma=0.9, verbose=True)
-
+def prepare_simclr(path_to_data_split):
     loss_fn = ContrastiveLoss(temperature=wandb.config.temperature)
 
     train_loader, valid_loader = get_dataloaders(
@@ -150,27 +104,7 @@ def train(path_to_data_split, model_log_path):
         valid_transform=get_contrastive_transform(
             crops=wandb.config.number_of_crops, crop_size=wandb.config.crop_size
         ),
+        num_workers=wandb.config.num_workers
     )
 
-    saver = CheckpointSaver(model_log_path, decreasing=True, top_n=3)
-
-    # wandb.watch(model, log_freq=1000, log="all", log_graph=False)
-
-    for epoch in range(wandb.config.epochs):
-
-        wandb.log({"LR": optimizer.param_groups[0]["lr"]}, commit=False)
-
-        _ = run_epoch(model, loss_fn, train_loader, optimizer)
-
-        with torch.no_grad():
-            valid_loss = run_epoch(model, loss_fn, valid_loader)
-
-        # Save checkpoints only 30% into the training. This prevents saving to early models.
-        # if epoch > wandb.config.epochs * 0.3:
-        saver(model, epoch, valid_loss)
-
-        scheduler.step()
-
-    if wandb.config.run_downsream_task:
-        if (epoch + 1) % wandb.config.downstream_every_n_epochs == 0:
-            downstram_class.train(path_to_data_split, model_log_path)
+    return loss_fn, train_loader, valid_loader
