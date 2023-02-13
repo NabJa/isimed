@@ -28,9 +28,11 @@ def read_args():
 def init_wandb(project_name="Meddist"):
     args = read_args()
 
-    wandb.init(project=project_name, config=args.config)
+    run = wandb.init(project=project_name, config=args.config)
 
     for arg, arg_type in ARGUMENTS:
         argument = args.__getattribute__(arg)
         if argument is not None:
             wandb.config.update({arg: arg_type(argument)}, allow_val_change=True)
+
+    return run
