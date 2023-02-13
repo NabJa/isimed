@@ -40,12 +40,9 @@ if __name__ == "__main__":
 
     set_determinism()
 
-    # Read config file specifed in command line arguments.
-    init_wandb(project_name="Meddist-test")
-
-    model_log_path = parse_wandb_config()
-    path_to_data_split = DATA_PATHS[wandb.config.data]
-
-    train(wandb.config.model, path_to_data_split, model_log_path)
+    with init_wandb(project_name="Meddist-test"):
+        model_log_path = parse_wandb_config()
+        path_to_data_split = DATA_PATHS[wandb.config.data]
+        train(path_to_data_split, model_log_path)
 
     cleanup_model_log_directory(MODEL_LOG_ROOT)
