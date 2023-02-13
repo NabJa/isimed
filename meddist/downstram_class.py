@@ -52,10 +52,10 @@ def get_data_loaders(path_to_data_split, crop_size=64):
     )
 
     dataset_valid = Dataset(split["validation"], transform=transform)
-    loader_valid = DataLoader(dataset_valid)
+    loader_valid = DataLoader(dataset_valid, num_workers=8)
 
     dataset_train = Dataset(split["test"], transform=transform)
-    loader_train = DataLoader(dataset_train)
+    loader_train = DataLoader(dataset_train, num_workers=8)
 
     return loader_train, loader_valid
 
@@ -137,13 +137,17 @@ def train(path_to_data_split, path_to_model_directory):
 
     # Log only best epoch
     best_epoch = np.argmin(all_losses)
-    log_dict = {
-        f"Downstream/{k}": v for k, v in zip(metric_names, all_metrics[best_epoch])
-    }
+
+    log_dict = dict()
+    f1_score = all_metrics[best_epoch][3]
+    log_dict["f1_score"] = f1_score  # This has to be named explicitly for wandb sweep!
+    log_dict["accuracy"] = all_metrics[best_epoch][2]
+    log_dict["specificity"] = all_metrics[best_epoch][1]
+    log_dict["sensitivity"] = all_metrics[best_epoch][0]
     log_dict["Downstream/Loss"] = all_losses[best_epoch]
     log_dict["Downstream/Best epoch"] = epochs[best_epoch]
 
-    wandb.log(log_dict, commit=False)
+    wandb.log(log_dict, commit=True)
 
 
 def init():
