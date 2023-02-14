@@ -2,8 +2,7 @@ from typing import Tuple
 
 import torch
 import wandb
-from meddist.data.loading import get_dataloaders
-from meddist.training.contrastive import get_contrastive_transform
+from meddist.data.loading import get_contrastive_transform, get_dataloaders
 from monai.data import MetaTensor
 from torch import nn
 
