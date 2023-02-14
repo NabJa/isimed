@@ -5,7 +5,7 @@
 # General settings
 model:
   desc: Model type to be trained. Choose between simclr, meddist and barlow.
-  value: simclr
+  value: meddist
 
 data:
   desc: Dataset to train on. This can be brats or autopet.
@@ -21,21 +21,18 @@ embedding_size:
   desc: Size of the feature vector of the trained model.
   value: 1024
 
-crop_size:
-  desc: Size of the crop.
-  value: 32
 
 # SSL settings
 epochs:
   desc: Number of epochs to train over
-  value: 1
+  value: 10
 
-number_of_crops:
-  desc: Crops sampled per patient. This is the same as batch size in this training logic.
-  value: 256
+crop_size:
+  desc: Size of the crop.
+  value: 32
 
 batch_size:
-  desc: From how many patients we will take the crops. ATTENTION The total batch size is batch_size * number_of_crops
+  desc: From how many patients we will take the crops. ATTENTION The total batch size is batch_size * number_of_crops. number_of_crops is automatically determined.
   value: 2
 
 lr:
@@ -58,7 +55,7 @@ run_downsream_task:
 
 downstream_every_n_epochs:
   desc: When to do the downstram classification.
-  value: 1
+  value: 3
 
 retrain_backbone:
   desc: If true, the backbone will be retrain.

@@ -2,9 +2,9 @@ import torch
 import wandb
 from meddist import downstram_class
 from meddist.training.barlow import forward_barlow, prepare_barlow
-from meddist.training.contrastive import forward_simclr, prepare_simclr
 from meddist.training.logs import CheckpointSaver, MetricTracker
 from meddist.training.phys import forward_meddist, prepare_meddist
+from meddist.training.simclr import forward_simclr, prepare_simclr
 from monai.networks.nets import DenseNet
 
 MODEL_PREP = {
@@ -19,7 +19,7 @@ def run_epoch(forward, model, loss_fn, dataloader, optimizer=None) -> None:
 
     mode = "valid" if optimizer is None else "train"
 
-    tracker = MetricTracker(f"{mode}/Loss")
+    tracker = MetricTracker(f"{mode}/loss")
 
     for i, batch in enumerate(dataloader):
         # Prepare forward pass
@@ -44,7 +44,7 @@ def run_epoch(forward, model, loss_fn, dataloader, optimizer=None) -> None:
     if mode == "valid":
         wandb.log(aggregated, commit=False)
 
-    return aggregated[f"{mode}/Loss"]
+    return aggregated[f"{mode}/loss"]
 
 
 def train(path_to_data_split, model_log_path):
