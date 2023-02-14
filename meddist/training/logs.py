@@ -15,7 +15,6 @@ class CheckpointSaver:
         """
 
         self.dirpath = Path(dirpath)
-        self.dirpath.mkdir(parents=True, exist_ok=True)
 
         self.top_n = top_n
         self.decreasing = decreasing
@@ -35,6 +34,8 @@ class CheckpointSaver:
                 f"Current metric value better than {metric_val} better than best {self.best_metric_val}, saving model at {model_path}, & logging model weights to W&B."
             )
             self.best_metric_val = metric_val
+
+            model_path.parent.mkdir(exist_ok=True, parents=True)
             torch.save(model.state_dict(), model_path)
             self.log_artifact(f"model-ckpt-epoch-{epoch}.pt", model_path, metric_val)
             self.top_model_paths.append({"path": model_path, "score": metric_val})

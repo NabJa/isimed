@@ -55,4 +55,4 @@ if __name__ == "__main__":
         path_to_data_split = DATA_PATHS[wandb.config.data]
         train(path_to_data_split, model_log_path)
 
-    cleanup_model_log_directory(MODEL_LOG_ROOT)
+    # cleanup_model_log_directory(MODEL_LOG_ROOT)
