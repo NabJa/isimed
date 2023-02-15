@@ -129,7 +129,7 @@ def train(path_to_data_split, path_to_model_directory):
     )
 
     all_metrics, all_losses, epochs = [], [], []
-    for epoch in range(wandb.config.epochs):
+    for epoch in range(wandb.config.downstream_epochs):
         _ = run_epoch(classifier, loss_fn, loader_train, optimizer)
         with torch.no_grad():
             metrics, loss = run_epoch(classifier, loss_fn, loader_valid)
@@ -142,14 +142,16 @@ def train(path_to_data_split, path_to_model_directory):
 
     log_dict = dict()
     f1_score = all_metrics[best_epoch][3]
-    log_dict["f1_score"] = f1_score  # This has to be named explicitly for wandb sweep!
-    log_dict["accuracy"] = all_metrics[best_epoch][2]
-    log_dict["specificity"] = all_metrics[best_epoch][1]
-    log_dict["sensitivity"] = all_metrics[best_epoch][0]
-    log_dict["Downstream/Loss"] = all_losses[best_epoch]
-    log_dict["Downstream/Best epoch"] = epochs[best_epoch]
+    log_dict[
+        "downstream/f1_score"
+    ] = f1_score  # This has to be named explicitly for wandb sweep!
+    log_dict["downstream/accuracy"] = all_metrics[best_epoch][2]
+    log_dict["downstream/specificity"] = all_metrics[best_epoch][1]
+    log_dict["downstream/sensitivity"] = all_metrics[best_epoch][0]
+    log_dict["downstream/Loss"] = all_losses[best_epoch]
+    log_dict["downstream/Best epoch"] = epochs[best_epoch]
 
-    wandb.log(log_dict, commit=True)
+    wandb.log(log_dict, commit=False)
 
 
 def init():
