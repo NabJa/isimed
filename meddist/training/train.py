@@ -15,12 +15,13 @@ MODEL_PREP = {
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 
-def run_epoch(forward, model, loss_fn, dataloader, optimizer=None) -> None:
+def run_epoch(
+    forward, model, loss_fn, dataloader, optimizer=None, global_step=0
+) -> None:
 
     mode = "valid" if optimizer is None else "train"
 
     tracker = MetricTracker(f"{mode}/loss")
-
     for i, batch in enumerate(dataloader):
         # Prepare forward pass
         if mode == "train":
@@ -32,7 +33,8 @@ def run_epoch(forward, model, loss_fn, dataloader, optimizer=None) -> None:
         if mode == "train":
             loss.backward()
             optimizer.step()
-            wandb.log({f"{mode}/loss": loss.item()})
+            wandb.log({f"{mode}/loss": loss.item()}, step=global_step)
+            global_step += 1
 
         # Log
         tracker(loss.item())
@@ -44,7 +46,7 @@ def run_epoch(forward, model, loss_fn, dataloader, optimizer=None) -> None:
     if mode == "valid":
         wandb.log(aggregated, commit=False)
 
-    return aggregated[f"{mode}/loss"]
+    return aggregated[f"{mode}/loss"], global_step
 
 
 def train(path_to_data_split, model_log_path):
@@ -69,14 +71,25 @@ def train(path_to_data_split, model_log_path):
     saver = CheckpointSaver(model_log_path, decreasing=True, top_n=3)
 
     # Start training
+    global_step = 0
     for epoch in range(wandb.config.epochs):
 
-        wandb.log({"LR": optimizer.param_groups[0]["lr"]}, commit=False)
+        wandb.log(
+            {"meta/LR": optimizer.param_groups[0]["lr"], "meta/Epoch": epoch},
+            commit=False,
+        )
 
-        _ = run_epoch(forward, model, loss_fn, train_loader, optimizer)
+        _, global_step = run_epoch(
+            forward,
+            model,
+            loss_fn,
+            train_loader,
+            optimizer,
+            global_step,
+        )
 
         with torch.no_grad():
-            valid_loss = run_epoch(forward, model, loss_fn, valid_loader)
+            valid_loss, _ = run_epoch(forward, model, loss_fn, valid_loader)
 
         # Save checkpoints only 30% into the training. This prevents saving to early models.
         # if epoch > wandb.config.epochs * 0.3:
