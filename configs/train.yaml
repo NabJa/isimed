@@ -14,7 +14,7 @@ data:
 # General settings
 num_workers:
   desc: Num of workers for dataloader.
-  value: 1
+  value: 8
 
 # Model settings
 embedding_size:
@@ -25,7 +25,7 @@ embedding_size:
 # SSL settings
 epochs:
   desc: Number of epochs to train over
-  value: 10
+  value: 50
 
 crop_size:
   desc: Size of the crop.
@@ -44,7 +44,7 @@ augment:
   value: False
 
 temperature:
-  desc: In SimCLR this is as in paper. In meddist this is a weighing of the KL-Divergence.
+  desc: In SimCLR this is as in paper. In meddist this is a weighing of the KL-Divergence (Loss + temperature * KLLoss).
   value: 0.05
 
 
@@ -55,7 +55,7 @@ run_downsream_task:
 
 downstream_every_n_epochs:
   desc: When to do the downstram classification.
-  value: 3
+  value: 5
 
 retrain_backbone:
   desc: If true, the backbone will be retrain.
@@ -71,4 +71,4 @@ downstream_number_of_crops:
 
 downstream_epochs:
   desc: Epochs.
-  value: 2
+  value: 25
