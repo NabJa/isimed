@@ -1,3 +1,4 @@
+import argparse
 from functools import partial
 from multiprocessing import Pool
 from typing import Callable, List
@@ -95,8 +96,14 @@ class PatchDataset:
 def get_representation(sample, model, device, image_key):
     return model(sample[image_key].to(device)).detach().numpy()
 
+
 def generate_dataset_representations(
-    path_to_data_split, path_to_model_dir, patch_size=32, split="train", roi_size=None, num_workers=8
+    path_to_data_split,
+    path_to_model_dir,
+    patch_size=32,
+    split="valid",
+    roi_size=None,
+    num_workers=1,
 ):
 
     # Get data
@@ -111,10 +118,75 @@ def generate_dataset_representations(
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model = load_latest_densenet(path_to_model_dir).to(device).eval()
 
-
     # Generate representations
-    _get_representation = partial(get_representation, model=model, device=device, image_key="image")   
-    with Pool(num_workers) as p:
-        all_representations = list(tqdm(p.imap(_get_representation, data_laoder), total=len(patch_dataset)))
+
+    _get_representation = partial(
+        get_representation, model=model, device=device, image_key="image"
+    )
+
+  
+    # Error on cluster. Therefore no MP.
+    # OSError: [Errno 24] Too many open files: '/tmp/pymp-46zfui7t'
+    
+    # )
+    # with Pool(num_workers) as p:
+    #     all_representations = list(
+    #         tqdm(p.imap(_get_representation, data_laoder), total=len(patch_dataset))
+    #     )
+
+    all_representations = [_get_representation(sample) for sample in tqdm(data_laoder, total=len(patch_dataset))]
 
     return np.array(all_representations)
+
+
+def save_dataset_representations(
+    path_to_data_split, path_to_model_dir, output_path, **kwargs
+):
+
+    all_representations = generate_dataset_representations(
+        path_to_data_split, path_to_model_dir, **kwargs
+    )
+
+    np.savez(
+        output_path,
+        representations=all_representations,
+        path_to_data_split=path_to_data_split,
+    )
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "-path_to_split",
+        type=str,
+        required=True,
+        help="Path to data split file containing image paths.",
+    )
+    parser.add_argument(
+        "-path_to_model",
+        type=str,
+        required=True,
+        help="Path to data model directory containing trained densenet.",
+    )
+    parser.add_argument(
+        "-output_file_name",
+        type=str,
+        required=True,
+        help="Path to file to save representations. Should end with .npz!",
+    )
+    parser.add_argument(
+        "-split",
+        type=str,
+        default="valid",
+        help="Choose between train, valid and test.",
+    )
+    parser.add_argument("-patch_size", type=int, default=32)
+    args = parser.parse_args()
+
+    save_dataset_representations(
+        args.path_to_split,
+        args.path_to_model,
+        args.output_file_name,
+        patch_size=args.patch_size,
+        split=args.split,
+    )
