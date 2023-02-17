@@ -1,3 +1,5 @@
+from functools import partial
+from multiprocessing import Pool
 from typing import Callable, List
 
 import monai.transforms as tfm
@@ -72,16 +74,29 @@ class PatchDataset:
             ]
         )
 
-    def __len__(self):
+    @property
+    def npatches(self) -> int:
+        sample = self.data[0]
+        return len([x[0] for x in self.patch_transform(sample)])
+
+    @property
+    def npatients(self) -> int:
         return len(self.data)
+
+    def __len__(self):
+        return self.npatients
 
     def __getitem__(self, idx):
         sample = self.data[idx]
         return [x[0] for x in self.patch_transform(sample)]
 
 
+@torch.no_grad()
+def get_representation(sample, model, device, image_key):
+    return model(sample[image_key].to(device)).detach().numpy()
+
 def generate_dataset_representations(
-    path_to_data_split, path_to_model_dir, output_path, split="train"
+    path_to_data_split, path_to_model_dir, patch_size=32, split="train", roi_size=None, num_workers=8
 ):
 
     # Get data
@@ -89,22 +104,17 @@ def generate_dataset_representations(
 
     correct_split = {"train": train_images, "valid": valid_images, "test": test_images}
 
-    data_laoder = DataLoader(
-        PatchDataset(correct_split[split]), num_workers=1, batch_size=1
-    )
+    patch_dataset = PatchDataset(correct_split[split][:10], patch_size, roi_size)
+    data_laoder = DataLoader(patch_dataset)
 
     # Get model
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model = load_latest_densenet(path_to_model_dir).to(device).eval()
 
+
     # Generate representations
-    all_representations = {}
-    for sample in tqdm(data_laoder, total=len(correct_split[split])):
-        sample_path = sample["image"]["filename_or_obj"][0]
+    _get_representation = partial(get_representation, model=model, device=device, image_key="image")   
+    with Pool(num_workers) as p:
+        all_representations = list(tqdm(p.imap(_get_representation, data_laoder), total=len(patch_dataset)))
 
-        with torch.no_grad():
-            representations = model(sample["image"].to(device)).detach().numpy()
-
-        all_representations[sample_path] = representations
-
-    return all_representations
+    return np.array(all_representations)
