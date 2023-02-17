@@ -1,14 +1,10 @@
 import argparse
-import pickle
 
-import monai.transforms as tfm
 import numpy as np
 import torch
 import wandb
 from meddist.data.loading import get_downstram_classification_data
 from meddist.nets import LinearHead, load_latest_densenet
-from meddist.transforms import GetClassesFromCropsd
-from monai.data import DataLoader, Dataset
 from monai.metrics import ConfusionMatrixMetric
 from monai.utils.misc import set_determinism
 from torch import nn
