@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import List
 
 import monai.transforms as tfm
+from meddist.transforms import GetClassesFromCropsd
 from monai.data import DataLoader, Dataset
 
 MonaiData = List[dict]
@@ -167,3 +168,39 @@ def get_dataloaders(
     )
 
     return DataLoader(train_dataset, batch_size=batch_size, num_workers=num_workers), DataLoader(valid_dataset, num_workers=num_workers)
+
+
+def get_downstram_classification_data(path_to_data_split, crop_size=64):
+
+    with open(path_to_data_split, mode="rb") as file:
+        split = pickle.load(file)
+
+    transform = tfm.Compose(
+        [
+            tfm.LoadImaged(keys=["image", "label"], ensure_channel_first=True),
+            tfm.CropForegroundd(
+                keys=["image", "label"],
+                source_key="image",
+                select_fn=lambda x: x > 0,
+            ),
+            tfm.ScaleIntensityRangePercentilesd(
+                keys="image", lower=5, upper=95, b_min=-1.0, b_max=1.0
+            ),
+            tfm.RandCropByPosNegLabeld(
+                keys=["image", "label"],
+                label_key="label",
+                pos=0.65,
+                num_samples=32,
+                spatial_size=crop_size,
+            ),
+            GetClassesFromCropsd(label_key="label"),
+        ]
+    )
+
+    dataset_valid = Dataset(split["validation"], transform=transform)
+    loader_valid = DataLoader(dataset_valid, num_workers=8)
+
+    dataset_train = Dataset(split["test"], transform=transform)
+    loader_train = DataLoader(dataset_train, num_workers=8)
+
+    return loader_train, loader_valid

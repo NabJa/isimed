@@ -7,10 +7,11 @@ import wandb
 
 
 class CheckpointSaver:
-    def __init__(self, dirpath, decreasing=True, top_n=5):
+    def __init__(self, dirpath, decreasing=True, do_log_artifact=False, top_n=5):
         """
         dirpath: Directory path where to store all model weights
         decreasing: If decreasing is `True`, then lower metric is better
+        do_log_artifact: Adds artifacts to wandb.
         top_n: Total number of models to track based on validation metric value
         """
 
@@ -18,6 +19,7 @@ class CheckpointSaver:
 
         self.top_n = top_n
         self.decreasing = decreasing
+        self.do_log_artifact = do_log_artifact
         self.top_model_paths = []
         self.best_metric_val = np.Inf if decreasing else -np.Inf
 
@@ -37,7 +39,8 @@ class CheckpointSaver:
 
             model_path.parent.mkdir(exist_ok=True, parents=True)
             torch.save(model.state_dict(), model_path)
-            self.log_artifact(f"model-ckpt-epoch-{epoch}.pt", model_path, metric_val)
+            if self.do_log_artifact:
+                self.log_artifact(f"model-ckpt-epoch-{epoch}.pt", model_path, metric_val)
             self.top_model_paths.append({"path": model_path, "score": metric_val})
             self.top_model_paths = sorted(
                 self.top_model_paths,
