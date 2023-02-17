@@ -1,7 +1,16 @@
+from pathlib import Path
+
 import torch
 from monai.networks.layers import get_act_layer
 from monai.networks.nets import DenseNet
 from torch import nn
+
+
+def get_latest_model(path_to_model_directory):
+    directory = Path(path_to_model_directory).iterdir()
+    # Model name has the format ARCHITECTURE_EPOCH001.pt
+    sorted_models = sorted(directory, key=lambda x: int(x.name.split(".")[0][-3:]))
+    return sorted_models[-1]
 
 
 def load_densenet(path, out_channels=1024, map_location="cpu"):
@@ -11,6 +20,9 @@ def load_densenet(path, out_channels=1024, map_location="cpu"):
     densenet.load_state_dict(state_dict)
     return densenet
 
+
+def load_latest_densenet(path):
+    return load_densenet(get_latest_model(path))
 
 class ClassificationHead(nn.Module):
     def __init__(

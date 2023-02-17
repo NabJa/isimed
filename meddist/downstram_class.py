@@ -1,12 +1,11 @@
 import argparse
 import pickle
-from pathlib import Path
 
 import monai.transforms as tfm
 import numpy as np
 import torch
 import wandb
-from meddist.nets import LinearHead, load_densenet
+from meddist.nets import LinearHead, load_latest_densenet
 from meddist.transforms import GetClassesFromCropsd
 from monai.data import DataLoader, Dataset
 from monai.metrics import ConfusionMatrixMetric
@@ -17,13 +16,6 @@ torch.multiprocessing.set_sharing_strategy("file_system")
 set_determinism()
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-
-
-def get_latest_model(path_to_model_directory):
-    directory = Path(path_to_model_directory).iterdir()
-    # Model name has the format ARCHITECTURE_EPOCH001.pt
-    sorted_models = sorted(directory, key=lambda x: int(x.name.split(".")[0][-3:]))
-    return sorted_models[-1]
 
 
 def get_data_loaders(path_to_data_split, crop_size=64):
@@ -113,16 +105,16 @@ def run_epoch(
 def train(path_to_data_split, path_to_model_directory):
 
     metric_names = ["sensitivity", "specificity", "accuracy", "f1 score"]
-    path_to_model = get_latest_model(path_to_model_directory)
 
     classifier = LinearHead(
-        load_densenet(path_to_model),
+        load_latest_densenet(path_to_model_directory),
         retrain_backbone=wandb.config.retrain_backbone,
     ).to(DEVICE)
     optimizer = torch.optim.Adam(classifier.parameters())
-    loss_fn = nn.BCEWithLogitsLoss(
-        pos_weight=torch.tensor(float(wandb.config.pos_weight))
-    )
+    # loss_fn = nn.BCEWithLogitsLoss(
+    #     pos_weight=torch.tensor(float(wandb.config.pos_weight))
+    # )
+    loss_fn = nn.BCEWithLogitsLoss()
 
     loader_train, loader_valid = get_data_loaders(
         path_to_data_split, wandb.config.crop_size
