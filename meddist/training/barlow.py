@@ -57,8 +57,10 @@ def forward_barlow(model, batch, loss_fn, mode, device="cuda"):
     emb1, emb2 = emb1.to("cpu").float(), emb2.to("cpu").float()
     loss, invariant_loss, covariant_loss = loss_fn(emb1, emb2)
 
-    return loss, {f"{mode}/invariant_loss": invariant_loss.item(), f"{mode}/covariant_loss": covariant_loss.item()}
-
+    return loss, {
+        f"{mode}/invariant_loss": invariant_loss.item(),
+        f"{mode}/covariant_loss": covariant_loss.item(),
+    }
 
 
 def prepare_barlow(path_to_data_split):
@@ -73,7 +75,7 @@ def prepare_barlow(path_to_data_split):
         valid_transform=get_contrastive_transform(
             crops=wandb.config.number_of_crops, crop_size=wandb.config.crop_size
         ),
-        num_workers=wandb.config.num_workers
+        num_workers=wandb.config.num_workers,
     )
 
     return loss_fn, train_loader, valid_loader

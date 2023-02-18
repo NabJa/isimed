@@ -145,6 +145,7 @@ def get_dataloaders(
     add_intensity_augmentation=False,
     train_transform=None,
     valid_transform=None,
+    valid_batch_size=2,
 ):
     train_data, valid_data, _ = read_data_split(path)
 
@@ -167,7 +168,9 @@ def get_dataloaders(
         transform=_valid_transform if valid_transform is None else valid_transform,
     )
 
-    return DataLoader(train_dataset, batch_size=batch_size, num_workers=num_workers), DataLoader(valid_dataset, num_workers=num_workers)
+    return DataLoader(
+        train_dataset, batch_size=batch_size, num_workers=num_workers
+    ), DataLoader(valid_dataset, batch_size=valid_batch_size, num_workers=num_workers)
 
 
 def get_downstram_classification_data(path_to_data_split, crop_size=64):
