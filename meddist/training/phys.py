@@ -27,6 +27,25 @@ class DistanceKLMSELoss(nn.Module):
         return total_loss, kl_loss, mse_loss
 
 
+class DistanceLoss(nn.Module):
+    def __init__(self) -> None:
+        super().__init__()
+        self.mse = nn.MSELoss()
+
+    def forward(self, image, embeddings):
+
+        bboxes = get_cropped_bboxes(image, "RandSpatialCropSamples")
+        centers = get_bbox_centers(bboxes)
+
+        gt_dist_mat = torch.cdist(
+            torch.tensor(centers), torch.tensor(centers), p=2.0
+        ).float()
+
+        pred_dist_mat = torch.cdist(embeddings, embeddings, p=2)
+
+        return self.mse(pred_dist_mat, gt_dist_mat)
+
+
 def get_max_distance(dist_mat1: torch.Tensor, dist_mat2: torch.Tensor) -> float:
     return torch.max(torch.abs(dist_mat1 - dist_mat2)).item()
 
@@ -73,7 +92,7 @@ def prepare_meddist(path_to_data_split):
         crop_size=wandb.config.crop_size,
         add_intensity_augmentation=wandb.config.augment,
         batch_size=wandb.config.batch_size,
-        num_workers=wandb.config.num_workers
+        num_workers=wandb.config.num_workers,
     )
 
     return loss_fn, train_loader, valid_loader
