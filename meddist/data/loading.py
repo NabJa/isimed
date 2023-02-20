@@ -170,7 +170,13 @@ def get_dataloaders(
 
     return DataLoader(
         train_dataset, batch_size=batch_size, num_workers=num_workers
-    ), DataLoader(valid_dataset, batch_size=valid_batch_size, num_workers=num_workers)
+    ), DataLoader(
+        valid_dataset,
+        batch_size=valid_batch_size,
+        num_workers=num_workers,
+        drop_last=True,
+        shuffle=True,
+    )
 
 
 def get_downstram_classification_data(path_to_data_split, crop_size=64):
