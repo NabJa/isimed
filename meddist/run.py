@@ -50,7 +50,7 @@ if __name__ == "__main__":
 
     set_determinism()
 
-    with init_wandb(project_name="simCLR"):
+    with init_wandb(project_name="SLLMedImages"):
         model_log_path = parse_wandb_config()
         path_to_data_split = DATA_PATHS[wandb.config.data]
         train(path_to_data_split, model_log_path)

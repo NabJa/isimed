@@ -98,12 +98,7 @@ def get_representation(sample, model, device, image_key):
 
 
 def generate_dataset_representations(
-    path_to_data_split,
-    path_to_model_dir,
-    patch_size=32,
-    split="valid",
-    roi_size=None,
-    num_workers=1,
+    path_to_data_split, path_to_model_dir, patch_size=32, split="valid", roi_size=None
 ):
 
     # Get data
@@ -111,7 +106,7 @@ def generate_dataset_representations(
 
     correct_split = {"train": train_images, "valid": valid_images, "test": test_images}
 
-    patch_dataset = PatchDataset(correct_split[split][:10], patch_size, roi_size)
+    patch_dataset = PatchDataset(correct_split[split], patch_size, roi_size)
     data_laoder = DataLoader(patch_dataset)
 
     # Get model
@@ -124,17 +119,10 @@ def generate_dataset_representations(
         get_representation, model=model, device=device, image_key="image"
     )
 
-  
-    # Error on cluster. Therefore no MP.
-    # OSError: [Errno 24] Too many open files: '/tmp/pymp-46zfui7t'
-    
-    # )
-    # with Pool(num_workers) as p:
-    #     all_representations = list(
-    #         tqdm(p.imap(_get_representation, data_laoder), total=len(patch_dataset))
-    #     )
-
-    all_representations = [_get_representation(sample) for sample in tqdm(data_laoder, total=len(patch_dataset))]
+    all_representations = [
+        _get_representation(sample)
+        for sample in tqdm(data_laoder, total=len(patch_dataset))
+    ]
 
     return np.array(all_representations)
 
