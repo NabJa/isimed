@@ -9,6 +9,7 @@ wandb
 
 # Data
 data_splits
+info.txt
 
 # Notebooks
 *.ipynb
