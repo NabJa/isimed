@@ -1,10 +1,11 @@
 from typing import Tuple
 
 import torch
-import wandb
-from meddist.data.loading import get_contrastive_transform, get_dataloaders
 from monai.data import MetaTensor
 from torch import nn
+
+import wandb
+from meddist.data.loading import get_contrastive_transform, get_dataloaders
 
 
 def off_diagonal(x) -> torch.Tensor:

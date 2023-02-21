@@ -6,11 +6,12 @@ from typing import Callable, List
 import monai.transforms as tfm
 import numpy as np
 import torch
+from monai.data import DataLoader, Dataset, PatchIterd
+from tqdm import tqdm
+
 from meddist.data.loading import read_data_split
 from meddist.nets import load_latest_densenet
 from meddist.transforms import GetClassesFromCropsd
-from monai.data import DataLoader, Dataset, PatchIterd
-from tqdm import tqdm
 
 
 def determine_max_foreground_crop_size(

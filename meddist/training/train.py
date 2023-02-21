@@ -1,4 +1,6 @@
 import torch
+from monai.networks.nets import DenseNet
+
 import wandb
 from meddist import downstram_class
 from meddist.training.barlow import forward_barlow, prepare_barlow
@@ -6,7 +8,6 @@ from meddist.training.barlowdist import forward_barlow_dist, prepare_barlow_dist
 from meddist.training.logs import CheckpointSaver, MetricTracker
 from meddist.training.phys import forward_meddist, prepare_meddist
 from meddist.training.simclr import forward_simclr, prepare_simclr
-from monai.networks.nets import DenseNet
 
 MODEL_PREP = {
     "meddist": (forward_meddist, prepare_meddist),

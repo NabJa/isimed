@@ -66,7 +66,7 @@ def get_cropped_bboxes(
 def get_bbox_centers(bbox: np.ndarray) -> np.ndarray:
     """Center is computed as starts + (ends - starts) / 2"""
     bbox = np.array(bbox)
-    
+
     if len(bbox.shape) == 1:
         return bbox[::2] + (bbox[1::2] - bbox[::2]) / 2
     if len(bbox.shape) == 2:

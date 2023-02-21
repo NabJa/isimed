@@ -1,9 +1,10 @@
 import torch
+from torch import nn
+
 import wandb
 from meddist.data.loading import get_contrastive_transform, get_dataloaders
 from meddist.training.barlow import BTLoss
 from meddist.training.phys import DistanceLoss
-from torch import nn
 
 
 class BarlowDist(nn.Module):

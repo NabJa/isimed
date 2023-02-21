@@ -2,12 +2,13 @@ import argparse
 
 import numpy as np
 import torch
-import wandb
-from meddist.data.loading import get_downstram_classification_data
-from meddist.nets import LinearHead, load_latest_densenet
 from monai.metrics import ConfusionMatrixMetric
 from monai.utils.misc import set_determinism
 from torch import nn
+
+import wandb
+from meddist.data.loading import get_downstram_classification_data
+from meddist.nets import LinearHead, load_latest_densenet
 
 torch.multiprocessing.set_sharing_strategy("file_system")
 set_determinism()

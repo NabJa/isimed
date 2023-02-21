@@ -1,8 +1,9 @@
 import torch
+from torch import nn
+
 import wandb
 from meddist.data.loading import get_dataloaders
 from meddist.dist import get_bbox_centers, get_cropped_bboxes
-from torch import nn
 
 
 class DistanceKLMSELoss(nn.Module):

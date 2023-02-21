@@ -1,6 +1,5 @@
 from copy import deepcopy
 
-import numpy as np
 import torch
 from monai.config import KeysCollection
 from monai.transforms import (

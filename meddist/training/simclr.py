@@ -1,7 +1,8 @@
 import torch
+from monai.losses import ContrastiveLoss
+
 import wandb
 from meddist.data.loading import get_contrastive_transform, get_dataloaders
-from monai.losses import ContrastiveLoss
 
 
 def forward_simclr(model, batch, loss_fn, mode=None, device="cuda"):

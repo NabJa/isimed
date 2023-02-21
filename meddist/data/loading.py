@@ -3,8 +3,9 @@ from pathlib import Path
 from typing import List
 
 import monai.transforms as tfm
-from meddist.transforms import GetClassesFromCropsd
 from monai.data import DataLoader, Dataset
+
+from meddist.transforms import GetClassesFromCropsd
 
 MonaiData = List[dict]
 

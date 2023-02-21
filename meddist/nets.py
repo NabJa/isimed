@@ -24,6 +24,7 @@ def load_densenet(path, out_channels=1024, map_location="cpu"):
 def load_latest_densenet(path):
     return load_densenet(get_latest_model(path))
 
+
 class ClassificationHead(nn.Module):
     def __init__(
         self,

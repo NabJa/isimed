@@ -1,9 +1,17 @@
 import argparse
 
-import wandb
 import yaml
 
-ARGUMENTS = [("data", str), ("model", str), ("crop_size", int), ("temperature", float), ("batch_size", int), ("epochs", int)]
+import wandb
+
+ARGUMENTS = [
+    ("data", str),
+    ("model", str),
+    ("crop_size", int),
+    ("temperature", float),
+    ("batch_size", int),
+    ("epochs", int),
+]
 
 
 def read_yaml(path):

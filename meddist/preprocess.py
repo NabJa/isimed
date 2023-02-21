@@ -7,10 +7,11 @@ import monai.transforms as tfm
 import nibabel as nib
 import numpy as np
 import torch
-from meddist.registration import DirectoryRegistration
 from monai.data import DataLoader, Dataset
 from tqdm import tqdm
 from wbpetct.data import FDG_PET_CT_Dataset
+
+from meddist.registration import DirectoryRegistration
 
 torch.multiprocessing.set_sharing_strategy("file_system")
 
