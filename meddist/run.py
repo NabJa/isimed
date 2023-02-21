@@ -2,10 +2,11 @@ import os
 from pathlib import Path
 from typing import Tuple
 
+from monai.utils.misc import set_determinism
+
 import wandb
 from meddist.config import init_wandb
 from meddist.training.train import train
-from monai.utils.misc import set_determinism
 
 DATA_PATHS = {
     "brats": "/sc-projects/sc-proj-gbm-radiomics/whole-body/meddistssl/data_splits/brats_split.pkl",

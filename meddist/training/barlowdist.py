@@ -11,6 +11,11 @@ class BarlowDist(nn.Module):
         self, embedding_size: int = 1024, barlow_weight: float = 10_000
     ) -> None:
         super().__init__()
+
+        # Making sure that during sweep no negative values are suggested.
+        if barlow_weight < 0:
+            barlow_weight = 0
+
         self.distance_loss_fn = DistanceLoss()
         self.bt_loss_fn = BTLoss(embedding_size)
         self.barlow_weight = barlow_weight
@@ -36,10 +41,14 @@ def forward_barlow_dist(model, batch, loss_fn, mode, device="cuda"):
 
     loss, distance_loss, bt_loss = loss_fn(batch["image"].to("cpu").float(), emb1, emb2)
 
-    return loss, {
+    metric = {
         f"{mode}/Meddist_loss": distance_loss.item(),
         f"{mode}/Barlow_loss": bt_loss.item(),
     }
+
+    wandb.log(metric, commit=False)
+
+    return loss, metric
 
 
 def prepare_barlow_dist(path_to_data_split):
