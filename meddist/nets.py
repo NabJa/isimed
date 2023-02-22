@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import OrderedDict
 
 import torch
 from monai.networks.layers import get_act_layer
@@ -10,19 +11,36 @@ def get_latest_model(path_to_model_directory):
     directory = Path(path_to_model_directory).iterdir()
     # Model name has the format ARCHITECTURE_EPOCH001.pt
     sorted_models = sorted(directory, key=lambda x: int(x.name.split(".")[0][-3:]))
-    return sorted_models[-1]
+    model_path: Path = sorted_models[-1]
+    model_name = model_path.name.split("_")[0]
+    return model_name, model_path
 
 
-def load_densenet(path, out_channels=1024, map_location="cpu"):
-    densenet = DenseNet(spatial_dims=3, in_channels=1, out_channels=out_channels)
+def load_state_file(path, map_location="cpu") -> OrderedDict[str, torch.Tensor]:
     with open(path, mode="rb") as file:
-        state_dict = torch.load(file, map_location=map_location)
+        return torch.load(file, map_location=map_location)
+
+def load_bthead_backbone_state(path, map_location="cpu"):
+    state_dict = load_state_file(path, map_location)
+    return {
+        k.replace("backbone.", ""): v for k, v in state_dict.items() if "backbone" in k
+    }
+
+
+def load_latest_densenet(path, out_channels=1024):
+    name, path = get_latest_model(path)
+    
+    if name.lower() == "densenet":
+        state_dict = load_state_file(path)
+    elif name.lower() == "distancescaledbthead":
+        state_dict = load_bthead_backbone_state(path)
+    else:
+        raise NotImplementedError(f"Model {name} unknown.")
+
+    densenet = DenseNet(spatial_dims=3, in_channels=1, out_channels=out_channels)
     densenet.load_state_dict(state_dict)
+    
     return densenet
-
-
-def load_latest_densenet(path):
-    return load_densenet(get_latest_model(path))
 
 
 class ClassificationHead(nn.Module):

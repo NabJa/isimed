@@ -8,12 +8,18 @@ from meddist.training.barlowdist import forward_barlow_dist, prepare_barlow_dist
 from meddist.training.logs import CheckpointSaver, MetricTracker
 from meddist.training.phys import forward_meddist, prepare_meddist
 from meddist.training.simclr import forward_simclr, prepare_simclr
+from meddist.training.two_headed_BTdist import (
+    DistanceScaledBTHead,
+    forward_hydra,
+    prepare_hydra,
+)
 
 MODEL_PREP = {
     "meddist": (forward_meddist, prepare_meddist),
     "barlow": (forward_barlow, prepare_barlow),
     "simclr": (forward_simclr, prepare_simclr),
-    "barlowdist": (forward_barlow_dist, prepare_barlow_dist)
+    "barlowdist": (forward_barlow_dist, prepare_barlow_dist),
+    "hydra": (forward_hydra, prepare_hydra),
 }
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -57,7 +63,13 @@ def train(path_to_data_split, model_log_path):
     # Define the model and optimizer
     model = DenseNet(
         spatial_dims=3, in_channels=1, out_channels=wandb.config.embedding_size
-    ).to(DEVICE)
+    )
+
+    if wandb.config.model == "hydra":
+        model = DistanceScaledBTHead(model, emb_size=wandb.config.embedding_size)
+        wandb.watch(model, log="all")
+    
+    model = model.to(DEVICE)
 
     optimizer = torch.optim.AdamW(model.parameters(), lr=wandb.config.lr)
 
