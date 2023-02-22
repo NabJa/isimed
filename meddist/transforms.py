@@ -150,6 +150,12 @@ class GetClassesFromCropsd(MapTransform):
     def __init__(
         self, label_key, class_key="has_pos_voxels", regression_key="num_pos_voxels"
     ):
+
+        # Common mistake is to just but the list of keys here.
+        assert isinstance(
+            label_key, str
+        ), f"Label key must be str. Not {type(label_key)}"
+
         self.label_key = label_key
         self.class_key = class_key
         self.regression_key = regression_key

@@ -8,7 +8,7 @@ from torch import nn
 
 
 def get_latest_model(path_to_model_directory):
-    directory = Path(path_to_model_directory).iterdir()
+    directory = Path(path_to_model_directory).glob("*.pt")
     # Model name has the format ARCHITECTURE_EPOCH001.pt
     sorted_models = sorted(directory, key=lambda x: int(x.name.split(".")[0][-3:]))
     model_path: Path = sorted_models[-1]
@@ -20,6 +20,7 @@ def load_state_file(path, map_location="cpu") -> OrderedDict[str, torch.Tensor]:
     with open(path, mode="rb") as file:
         return torch.load(file, map_location=map_location)
 
+
 def load_bthead_backbone_state(path, map_location="cpu"):
     state_dict = load_state_file(path, map_location)
     return {
@@ -29,7 +30,7 @@ def load_bthead_backbone_state(path, map_location="cpu"):
 
 def load_latest_densenet(path, out_channels=1024):
     name, path = get_latest_model(path)
-    
+
     if name.lower() == "densenet":
         state_dict = load_state_file(path)
     elif name.lower() == "distancescaledbthead":
@@ -39,7 +40,7 @@ def load_latest_densenet(path, out_channels=1024):
 
     densenet = DenseNet(spatial_dims=3, in_channels=1, out_channels=out_channels)
     densenet.load_state_dict(state_dict)
-    
+
     return densenet
 
 
