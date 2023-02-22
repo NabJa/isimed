@@ -1,6 +1,6 @@
 import argparse
+from collections import defaultdict
 from functools import partial
-from multiprocessing import Pool
 from typing import Callable, List
 
 import monai.transforms as tfm
@@ -12,6 +12,8 @@ from tqdm import tqdm
 from meddist.data.loading import read_data_split
 from meddist.nets import load_latest_densenet
 from meddist.transforms import GetClassesFromCropsd
+
+torch.multiprocessing.set_sharing_strategy("file_system")
 
 
 def determine_max_foreground_crop_size(
@@ -51,10 +53,12 @@ class PatchDataset:
         roi_size=None,
         keys=("image", "label"),
         image_key: str = "image",
+        label_key: str = "label",
         pad_mode="minimum",
     ):
         self.data = data
         self.keys = keys
+        self.label_key = label_key
 
         if roi_size is None:
             self.roi_size = determine_max_foreground_crop_size(
@@ -76,6 +80,13 @@ class PatchDataset:
             ]
         )
 
+        self.label_patches = tfm.Compose(
+            [
+                tfm.ToTensord(keys=self.keys),
+                GetClassesFromCropsd(label_key=self.label_key),
+            ]
+        )
+
     @property
     def npatches(self) -> int:
         sample = self.data[0]
@@ -90,7 +101,8 @@ class PatchDataset:
 
     def __getitem__(self, idx):
         sample = self.data[idx]
-        return [x[0] for x in self.patch_transform(sample)]
+        patches = [x[0] for x in self.patch_transform(sample)]
+        return self.label_patches(patches)
 
 
 @torch.no_grad()
@@ -99,8 +111,14 @@ def get_representation(sample, model, device, image_key):
 
 
 def generate_dataset_representations(
-    path_to_data_split, path_to_model_dir, patch_size=32, split="valid", roi_size=None
-):
+    path_to_data_split,
+    path_to_model_dir,
+    patch_size=32,
+    batch_size=1,
+    num_workers=8,
+    split="valid",
+    roi_size=None,
+) -> dict:
 
     # Get data
     train_images, valid_images, test_images = read_data_split(path_to_data_split)
@@ -108,39 +126,38 @@ def generate_dataset_representations(
     correct_split = {"train": train_images, "valid": valid_images, "test": test_images}
 
     patch_dataset = PatchDataset(correct_split[split], patch_size, roi_size)
-    data_laoder = DataLoader(patch_dataset)
+    data_loader = DataLoader(
+        patch_dataset, batch_size=batch_size, num_workers=num_workers
+    )
 
     # Get model
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model = load_latest_densenet(path_to_model_dir).to(device).eval()
 
     # Generate representations
+    repres = defaultdict(list)
+    for batch in tqdm(data_loader, total=len(data_loader)):
 
-    _get_representation = partial(
-        get_representation, model=model, device=device, image_key="image"
-    )
+        with torch.no_grad():
+            repres["embeddings"].append(model(batch["image"].to(device)).cpu().numpy())
 
-    all_representations = [
-        _get_representation(sample)
-        for sample in tqdm(data_laoder, total=len(patch_dataset))
-    ]
+        repres["paths"].append(batch["image_meta_dict"]["filename_or_obj"])
+        repres["has_pos_voxels"].append(batch["has_pos_voxels"].tolist())
+        repres["num_pos_voxels"].append(batch["num_pos_voxels"].tolist())
+        repres["patch_coords"].append(batch["patch_coords"].numpy())
 
-    return np.array(all_representations)
+    return {key: np.array(value) for key, value in repres.items()}
 
 
 def save_dataset_representations(
     path_to_data_split, path_to_model_dir, output_path, **kwargs
 ):
 
-    all_representations = generate_dataset_representations(
+    representations = generate_dataset_representations(
         path_to_data_split, path_to_model_dir, **kwargs
     )
 
-    np.savez(
-        output_path,
-        representations=all_representations,
-        path_to_data_split=path_to_data_split,
-    )
+    np.savez(output_path, **representations)
 
 
 if __name__ == "__main__":
