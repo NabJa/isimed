@@ -3,7 +3,9 @@ from pathlib import Path
 from typing import List
 
 import monai.transforms as tfm
+import numpy as np
 from monai.data import DataLoader, Dataset
+from sklearn.model_selection import KFold
 
 from meddist.transforms import GetClassesFromCropsd
 
@@ -180,6 +182,35 @@ def get_dataloaders(
     )
 
 
+###########################
+### Downstream analysis ###
+###########################
+
+
+def get_downstream_transormation(crop_size=32):
+    return tfm.Compose(
+        [
+            tfm.LoadImaged(keys=["image", "label"], ensure_channel_first=True),
+            tfm.CropForegroundd(
+                keys=["image", "label"],
+                source_key="image",
+                select_fn=lambda x: x > 0,
+            ),
+            tfm.ScaleIntensityRangePercentilesd(
+                keys="image", lower=5, upper=95, b_min=-1.0, b_max=1.0
+            ),
+            tfm.RandCropByPosNegLabeld(
+                keys=["image", "label"],
+                label_key="label",
+                pos=0.65,
+                num_samples=32,
+                spatial_size=crop_size,
+            ),
+            GetClassesFromCropsd(label_key="label"),
+        ]
+    )
+
+
 def get_downstram_classification_data(path_to_data_split, crop_size=64):
 
     with open(path_to_data_split, mode="rb") as file:
@@ -214,3 +245,26 @@ def get_downstram_classification_data(path_to_data_split, crop_size=64):
     loader_train = DataLoader(dataset_train, num_workers=8)
 
     return loader_train, loader_valid
+
+
+def kfold_get_downstram_classification_data(
+    path_to_data_split, n_splits=5, crop_size=32, num_workers=8
+):
+
+    kfold = KFold(n_splits=n_splits)
+    transform = get_downstream_transormation(crop_size)
+
+    with open(path_to_data_split, mode="rb") as file:
+        data = pickle.load(file)["test"]
+
+    # Make iit indexable with ints
+    data = np.array(data)
+
+    for train_idx, test_idx in kfold.split(data):
+        train_loader = DataLoader(
+            Dataset(data[train_idx], transform=transform), num_workers=num_workers
+        )
+        test_loader = DataLoader(
+            Dataset(data[test_idx], transform=transform), num_workers=num_workers
+        )
+        yield train_loader, test_loader
