@@ -227,11 +227,19 @@ def kfold_on_all_models(
 if __name__ == "__main__":
 
     path_to_autopet_models = {
-        "Meddist": "/sc-scratch/sc-scratch-gbm-radiomics/meddist_models/meddist_autopet/rural-sweep-6_wms3vlu5/",
-        "simCLR": "/sc-scratch/sc-scratch-gbm-radiomics/meddist_models/simclr_autopet/fearless-sweep-5_330cqe1o/",
-        "Barlow": "/sc-scratch/sc-scratch-gbm-radiomics/meddist_models/barlow_autopet/fine-sweep-4_6c91duk0/",
+        "Meddist": "/sc-scratch/sc-scratch-gbm-radiomics/meddist_models/meddist_autopet/likely-sweep-3_4u7nq7wr",
+        "simCLR": "/sc-scratch/sc-scratch-gbm-radiomics/meddist_models/simclr_autopet/revived-sweep-2_bv39ht3n",
+        "Barlow": "/sc-scratch/sc-scratch-gbm-radiomics/meddist_models/barlow_autopet/rare-sweep-1_wm8xqipy",
         "BarlowDist": "/sc-scratch/sc-scratch-gbm-radiomics/meddist_models/barlowdist_autopet/misunderstood-sweep-6_ffd48pdy",
-        "Hydra": "/sc-scratch/sc-scratch-gbm-radiomics/meddist_models/hydra_autopet/laced-puddle-6_d7er8anr",
+        "Hydra": "/sc-scratch/sc-scratch-gbm-radiomics/meddist_models/hydra_autopet/volcanic-sweep-6_9fckn0b2",
+    }
+
+    path_to_brats_models = {
+        "Meddist": "/sc-scratch/sc-scratch-gbm-radiomics/meddist_models/meddist_brats/woven-sweep-11_3mtl3e2q",
+        "simCLR": "/sc-scratch/sc-scratch-gbm-radiomics/meddist_models/simclr_brats/daily-sweep-10_139fn4em",
+        "Barlow": "/sc-scratch/sc-scratch-gbm-radiomics/meddist_models/barlow_brats/jolly-sweep-9_kkcwem37",
+        "BarlowDist": "/sc-scratch/sc-scratch-gbm-radiomics/meddist_models/barlowdist_brats/skilled-sweep-5_yyajynx8",
+        "Hydra": "/sc-scratch/sc-scratch-gbm-radiomics/meddist_models/hydra_brats/chocolate-sweep-5_xjpbcdxw",
     }
 
     parser = argparse.ArgumentParser()
@@ -249,7 +257,7 @@ if __name__ == "__main__":
         model_paths = path_to_autopet_models
     elif args.data == "brats":
         split_path = "/sc-projects/sc-proj-gbm-radiomics/whole-body/meddistssl/data_splits/brats_split.pkl"
-        raise ValueError()
+        model_paths = path_to_brats_models
 
     df = kfold_on_all_models(
         split_path,
