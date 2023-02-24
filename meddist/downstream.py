@@ -8,7 +8,7 @@ from monai.utils.misc import set_determinism
 from torch import nn
 from tqdm import tqdm
 
-from meddist.data.loading import kfold_get_downstram_classification_data
+from meddist.data.loading import kfold_get_downstram_data
 from meddist.metrics import ClassificationMetricTracker, RegressionMetricTracker
 from meddist.nets import LinearHead, load_latest_densenet
 
@@ -114,8 +114,8 @@ def run_kfold_downstream_experiment(
 ):
     """Use kfold CV on Test data."""
 
-    data_loader_generator = kfold_get_downstram_classification_data(
-        path_to_data_split, kfolds, crop_size, num_workers
+    data_loader_generator = kfold_get_downstram_data(
+        path_to_data_split, kfolds, crop_size, num_workers, task
     )
 
     metrics, losses = [], []

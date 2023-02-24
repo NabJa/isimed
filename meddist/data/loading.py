@@ -187,7 +187,7 @@ def get_dataloaders(
 ###########################
 
 
-def get_downstream_transormation(crop_size=32):
+def get_downstream_transormation(crop_size=32, pos_ratio=0.65):
     return tfm.Compose(
         [
             tfm.LoadImaged(keys=["image", "label"], ensure_channel_first=True),
@@ -202,7 +202,7 @@ def get_downstream_transormation(crop_size=32):
             tfm.RandCropByPosNegLabeld(
                 keys=["image", "label"],
                 label_key="label",
-                pos=0.65,
+                pos=pos_ratio,
                 num_samples=32,
                 spatial_size=crop_size,
             ),
@@ -211,7 +211,8 @@ def get_downstream_transormation(crop_size=32):
     )
 
 
-def get_downstram_classification_data(path_to_data_split, crop_size=64):
+def get_downstram_classification_data(path_to_data_split, crop_size=64, pos_ratio=0.65):
+    """Deprecated but still in use for downstram_class.py"""
 
     with open(path_to_data_split, mode="rb") as file:
         split = pickle.load(file)
@@ -230,7 +231,7 @@ def get_downstram_classification_data(path_to_data_split, crop_size=64):
             tfm.RandCropByPosNegLabeld(
                 keys=["image", "label"],
                 label_key="label",
-                pos=0.65,
+                pos=pos_ratio,
                 num_samples=32,
                 spatial_size=crop_size,
             ),
@@ -247,12 +248,14 @@ def get_downstram_classification_data(path_to_data_split, crop_size=64):
     return loader_train, loader_valid
 
 
-def kfold_get_downstram_classification_data(
-    path_to_data_split, n_splits=5, crop_size=32, num_workers=8
+def kfold_get_downstram_data(
+    path_to_data_split, n_splits=5, crop_size=32, num_workers=8, task="classification"
 ):
+    
+    pos_ratio = 0.65 if task == "classification" else 100
+    transform = get_downstream_transormation(crop_size, pos_ratio)
 
     kfold = KFold(n_splits=n_splits)
-    transform = get_downstream_transormation(crop_size)
 
     with open(path_to_data_split, mode="rb") as file:
         data = pickle.load(file)["test"]
