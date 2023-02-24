@@ -1,4 +1,5 @@
 import argparse
+from abc import abstractmethod
 from typing import List, Tuple
 
 import numpy as np
@@ -33,8 +34,20 @@ class Cumulative:
         self.label_buffer.append(y)
 
     def reset(self):
+        """Init/Empty buffers"""
         self.pred_buffer = []
         self.label_buffer = []
+
+    @abstractmethod
+    def aggregate(self, *args, **kwargs):
+        """
+        Aggregate final results based on the gathered buffers.
+        Computation of metrics based on labels and prediction must be done in this method.
+
+        """
+        raise NotImplementedError(
+            f"Subclass {self.__class__.__name__} must implement this method."
+        )
 
 
 class RegressionMetricTracker(Cumulative):
