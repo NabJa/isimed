@@ -10,6 +10,7 @@ wandb
 # Data
 data_splits
 info.txt
+cv_results
 
 # Notebooks
 *.ipynb
