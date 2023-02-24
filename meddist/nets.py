@@ -81,13 +81,19 @@ class LinearHead(nn.Module):
         embedding_size=1024,
         out_classes=1,
         retrain_backbone: bool = False,
+        final_activation=None,
     ) -> None:
         super().__init__()
         self.backbone = backbone
         self.retrain_backbone = retrain_backbone
         self.linear = nn.Linear(embedding_size, out_classes)
+        self.activation = (
+            get_act_layer(final_activation)
+            if final_activation is not None
+            else nn.Identity()
+        )
 
     def forward(self, x):
         with torch.set_grad_enabled(self.retrain_backbone):
             x = self.backbone(x)
-        return self.linear(x)
+        return self.activation(self.linear(x))
