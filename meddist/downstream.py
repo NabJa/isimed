@@ -4,15 +4,16 @@ from typing import List, Tuple
 import numpy as np
 import pandas as pd
 import torch
-from monai.metrics import ConfusionMatrixMetric, MAEMetric, RMSEMetric
+from monai.metrics import (
+    compute_confusion_matrix_metric,
+    compute_roc_auc,
+    get_confusion_matrix,
+)
 from monai.utils.misc import set_determinism
 from torch import nn
 from tqdm import tqdm
 
-from meddist.data.loading import (
-    get_downstram_classification_data,
-    kfold_get_downstram_classification_data,
-)
+from meddist.data.loading import kfold_get_downstram_classification_data
 from meddist.nets import LinearHead, load_latest_densenet
 
 torch.multiprocessing.set_sharing_strategy("file_system")
@@ -22,50 +23,64 @@ set_determinism()
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 
-class RegressionMetricTracker:
+class Cumulative:
     def __init__(self) -> None:
-        self.rmse = RMSEMetric()
-        self.mae = MAEMetric()
+        self.reset()
 
     def __call__(self, y_pred, y) -> None:
-        self.rmse(y_pred, y)
-        self.mae(y_pred, y)
+        """Add batch first data to buffers."""
+        self.pred_buffer.append(y_pred)
+        self.label_buffer.append(y)
+
+    def reset(self):
+        self.pred_buffer = []
+        self.label_buffer = []
+
+
+class RegressionMetricTracker(Cumulative):
+    def __init__(self) -> None:
+        super().__init__()
 
     def aggregate(self):
 
-        if len(self.rmse) == 0 or len(self.mae) == 0:
-            return {"RMSE": np.inf, "MAE": np.inf}
+        preds = torch.cat(self.pred_buffer, dim=0)
+        labels = torch.cat(self.label_buffer, dim=0)
 
-        rmse = self.rmse.aggregate()
-        mae = self.mae.aggregate()
-        return {"RMSE": rmse.item(), "MAE": mae.item()}
+        rmse = torch.sqrt(torch.pow(preds - labels, 2).mean()).item()
+        mae = torch.abs(preds - labels).mean().item()
 
-    def reset(self):
-        self.rmse.reset()
-        self.mae.reset()
+        return {"RMSE": rmse, "MAE": mae}
 
 
-class ClassificationMetricTracker:
+class ClassificationMetricTracker(Cumulative):
     def __init__(
         self,
         threshold=0.5,
         metric_names=("sensitivity", "specificity", "accuracy", "f1 score"),
     ) -> None:
+        super().__init__()
         self.threshold = threshold
         self.metric_names = metric_names
-        self.confusion = ConfusionMatrixMetric(metric_name=metric_names)
         self.sigmoid = nn.Sigmoid()
 
-    def __call__(self, y_pred, y) -> None:
-        y_pred = (self.sigmoid(y_pred) > self.threshold).int()
-        self.confusion(y_pred, y)
-
     def aggregate(self):
-        values = self.confusion.aggregate()
-        return {name: value.item() for name, value in zip(self.metric_names, values)}
 
-    def reset(self):
-        self.confusion.reset()
+        preds = torch.cat(self.pred_buffer, dim=0)
+        labels = torch.cat(self.label_buffer, dim=0)
+
+        result = {"AUC": compute_roc_auc(preds, labels)}
+
+        pred_binary = (self.sigmoid(preds) > self.threshold).float()
+        cm = get_confusion_matrix(pred_binary, labels)
+        cm = torch.sum(cm, 0)[0]  # Sum over all batches.
+
+        for name, value in zip(["TP", "FP", "TN", "FN"], cm):
+            result[name] = value.item()
+
+        for name in self.metric_names:
+            result[name] = compute_confusion_matrix_metric(name, cm).item()
+
+        return result
 
 
 TASK_PREP = {
@@ -110,7 +125,7 @@ def run_epoch(
 
         # Confusion matrix
         if metric_tracker is not None:
-            metric_tracker(pred, label)
+            metric_tracker(pred.T, label.T)
 
     # Aggregate all
     metrics = metric_tracker.aggregate() if metric_tracker is not None else {}
@@ -152,22 +167,6 @@ def run_downstream(
     return all_valid_metrics, all_valid_losses
 
 
-def run_downstream_experiment(
-    path_to_data_split, path_to_model_dir, retrain_backbone=False, crop_size=32
-):
-    """Downstream task trained on Validation data and tested on Test data."""
-    train_loader, valid_loader = get_downstram_classification_data(
-        path_to_data_split, crop_size
-    )
-
-    model = LinearHead(
-        load_latest_densenet(path_to_model_dir),
-        retrain_backbone=retrain_backbone,
-    ).to(DEVICE)
-
-    return run_downstream(train_loader, valid_loader, model)
-
-
 def run_kfold_downstream_experiment(
     path_to_data_split,
     path_to_model_dir,
@@ -190,6 +189,7 @@ def run_kfold_downstream_experiment(
         model = LinearHead(
             load_latest_densenet(path_to_model_dir),
             retrain_backbone=retrain_backbone,
+            final_activation="RELU" if task == "regression" else None,
         ).to(DEVICE)
 
         metric, loss = run_downstream(
