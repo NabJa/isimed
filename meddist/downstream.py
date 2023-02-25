@@ -6,7 +6,7 @@ import pandas as pd
 import torch
 from monai.utils.misc import set_determinism
 from torch import nn
-from tqdm import tqdm
+from tqdm import tqdm, trange
 
 from meddist.data.loading import kfold_get_downstram_data
 from meddist.metrics import ClassificationMetricTracker, RegressionMetricTracker
@@ -64,7 +64,7 @@ def run_epoch(
 
     # Aggregate all
     metrics = metric_tracker.aggregate() if metric_tracker is not None else {}
-    running_loss = running_loss / i
+    running_loss = running_loss / (i + 1)
 
     return metrics, running_loss
 
@@ -77,6 +77,8 @@ def run_downstream(
     task="classification",
 ) -> Tuple[List[dict], List[float]]:
     """
+    One downstream run. This function is run K times in a KFold CV.
+
     Args:
         path_to_data_split: Path to data split file.
         path_to_model_dir: Path to model directory containing trained models.
@@ -89,7 +91,7 @@ def run_downstream(
 
     all_valid_metrics = []
     all_valid_losses = []
-    for epoch in range(epochs):
+    for epoch in trange(epochs, desc="Epoch"):
         _, _ = run_epoch(model, loss_fn, train_loader, label_key, optimizer=optimizer)
         with torch.no_grad():
             valid_metrics, valid_loss = run_epoch(
@@ -112,7 +114,7 @@ def run_kfold_downstream_experiment(
     task="classification",
     num_workers=8,
 ):
-    """Use kfold CV on Test data."""
+    """Iteration of KFold Cross Validation on Valid data."""
 
     data_loader_generator = kfold_get_downstram_data(
         path_to_data_split, kfolds, crop_size, num_workers, task
@@ -137,6 +139,7 @@ def run_kfold_downstream_experiment(
 
 
 def kfold_results_to_df(results):
+    """Utility function to transform results to dataframe."""
     df = []
     for fold, (model, (metrics, losses)) in enumerate(results.items()):
         for metric, loss in zip(metrics, losses):
@@ -149,6 +152,7 @@ def kfold_results_to_df(results):
 def kfold_on_all_models(
     split_path: str, model_paths: dict, **experiment_kwags
 ) -> pd.DataFrame:
+    """Main function for KFold Cross Validation experiment on all models."""
     results = {}
     for name, model_path in tqdm(model_paths.items()):
         metrics, losses = run_kfold_downstream_experiment(
