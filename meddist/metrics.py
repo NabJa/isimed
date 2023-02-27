@@ -13,8 +13,13 @@ class Cumulative:
     def __init__(self) -> None:
         self.reset()
 
-    def __call__(self, y_pred, y) -> None:
-        """Add batch first data to buffers."""
+    def __call__(self, y_pred: torch.Tensor, y: torch.Tensor) -> None:
+        """Add data to buffers. Data is flattened and ignores batches. Must be same shape."""
+
+        assert (
+            y_pred.shape == y.shape
+        ), f"Given shapes: y_pred={y_pred.shape} y={y.shape}"
+
         self.pred_buffer.append(y_pred)
         self.label_buffer.append(y)
 
@@ -66,7 +71,11 @@ class ClassificationMetricTracker(Cumulative):
         preds = torch.cat(self.pred_buffer, dim=0)
         labels = torch.cat(self.label_buffer, dim=0)
 
-        result = {"AUC": compute_roc_auc(preds, labels)}
+        result = {
+            "AUC": compute_roc_auc(
+                preds.flatten(), labels.flatten()
+            )
+        }
 
         pred_binary = (self.sigmoid(preds) > self.threshold).float()
         cm = get_confusion_matrix(pred_binary, labels)

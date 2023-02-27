@@ -60,7 +60,8 @@ def run_epoch(
 
         # Confusion matrix
         if metric_tracker is not None:
-            metric_tracker(pred, label)
+            with torch.no_grad():
+                metric_tracker(pred.detach().as_tensor(), label)
 
     # Aggregate all
     metrics = metric_tracker.aggregate() if metric_tracker is not None else {}
