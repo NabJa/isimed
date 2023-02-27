@@ -249,7 +249,7 @@ def get_downstram_classification_data(path_to_data_split, crop_size=64, pos_rati
 
 
 def kfold_get_downstram_data(
-    path_to_data_split, n_splits=5, crop_size=32, num_workers=8, task="classification"
+    path_to_data_split, n_splits=5, crop_size=32, batch_size=32, num_workers=8, task="classification"
 ):
     
     pos_ratio = 0.65 if task == "classification" else 100
@@ -265,9 +265,9 @@ def kfold_get_downstram_data(
 
     for train_idx, test_idx in kfold.split(data):
         train_loader = DataLoader(
-            Dataset(data[train_idx], transform=transform), num_workers=num_workers
+            Dataset(data[train_idx], transform=transform), batch_size=batch_size, num_workers=num_workers
         )
         test_loader = DataLoader(
-            Dataset(data[test_idx], transform=transform), num_workers=num_workers
+            Dataset(data[test_idx], transform=transform), batch_size=batch_size, num_workers=num_workers
         )
         yield train_loader, test_loader

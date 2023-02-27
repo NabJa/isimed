@@ -60,7 +60,7 @@ def run_epoch(
 
         # Confusion matrix
         if metric_tracker is not None:
-            metric_tracker(pred.T, label.T)
+            metric_tracker(pred, label)
 
     # Aggregate all
     metrics = metric_tracker.aggregate() if metric_tracker is not None else {}
@@ -110,6 +110,7 @@ def run_kfold_downstream_experiment(
     kfolds=5,
     retrain_backbone=False,
     crop_size=32,
+    batch_size=32,
     epochs=10,
     task="classification",
     num_workers=8,
@@ -117,7 +118,7 @@ def run_kfold_downstream_experiment(
     """Iteration of KFold Cross Validation on Valid data."""
 
     data_loader_generator = kfold_get_downstram_data(
-        path_to_data_split, kfolds, crop_size, num_workers, task
+        path_to_data_split, kfolds, crop_size, batch_size, num_workers, task
     )
 
     metrics, losses = [], []
