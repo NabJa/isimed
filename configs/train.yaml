@@ -9,7 +9,7 @@ model:
 
 data:
   desc: Dataset to train on. This can be brats or autopet.
-  value: brats
+  value: autopet
 
 # General settings
 num_workers:
@@ -20,7 +20,6 @@ num_workers:
 embedding_size:
   desc: Size of the feature vector of the trained model.
   value: 1024
-
 
 # SSL settings
 epochs:
@@ -33,7 +32,7 @@ crop_size:
 
 batch_size:
   desc: From how many patients we will take the crops. ATTENTION The total batch size is batch_size * number_of_crops. number_of_crops is automatically determined.
-  value: 2
+  value: 64
 
 lr:
   desc: Learning rate
@@ -45,25 +44,25 @@ augment:
 
 temperature:
   desc: In SimCLR this is as in paper. In meddist this is a weighing of the KL-Divergence (Loss + temperature * KLLoss).
-  value: 0.05
+  value: 0.005
 
 
 # Setting for downstream task 
 run_downsream_task:
   desc: Wheather to run classification task
-  value: true
+  value: false
 
 downstream_every_n_epochs:
   desc: When to do the downstram classification.
-  value: 5
+  value: 10
 
 retrain_backbone:
   desc: If true, the backbone will be retrain.
   value: false
 
-pos_weight:
-  desc: A weight of positive examples for the pytorch BCEWithLogitsLoss.
-  value: 3.0
+# pos_weight:
+#   desc: A weight of positive examples for the pytorch BCEWithLogitsLoss.
+#   value: 3.0
 
 downstream_number_of_crops:
   desc: Crops sampled per patient. This is the same as batch size in this training logic.
@@ -71,4 +70,4 @@ downstream_number_of_crops:
 
 downstream_epochs:
   desc: Epochs.
-  value: 25
+  value: 15
