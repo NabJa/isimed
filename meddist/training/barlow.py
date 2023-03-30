@@ -65,7 +65,7 @@ def forward_barlow(model, batch, loss_fn, mode, device="cuda"):
 
 
 def prepare_barlow(path_to_data_split):
-    loss_fn = BTLoss(embedding_size=wandb.config.embedding_size)
+    loss_fn = BTLoss(embedding_size=wandb.config.embedding_size, lambd=wandb.config.temperature)
 
     train_loader, valid_loader = get_dataloaders(
         path_to_data_split,
