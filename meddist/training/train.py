@@ -1,18 +1,20 @@
+import numpy as np
 import torch
-from monai.networks.nets import DenseNet
-
 import wandb
 from meddist import downstram_class
+from meddist.metrics import estimate_rank_based_on_singular_values
 from meddist.training.barlow import forward_barlow, prepare_barlow
 from meddist.training.barlowdist import forward_barlow_dist, prepare_barlow_dist
 from meddist.training.logs import CheckpointSaver, MetricTracker
 from meddist.training.phys import forward_meddist, prepare_meddist
 from meddist.training.simclr import forward_simclr, prepare_simclr
+from meddist.training.simple_regression import SRegHead, forward_sreg, prepare_sreg
 from meddist.training.two_headed_BTdist import (
     DistanceScaledBTHead,
     forward_hydra,
     prepare_hydra,
 )
+from monai.networks.nets import DenseNet
 
 MODEL_PREP = {
     "meddist": (forward_meddist, prepare_meddist),
@@ -20,6 +22,7 @@ MODEL_PREP = {
     "simclr": (forward_simclr, prepare_simclr),
     "barlowdist": (forward_barlow_dist, prepare_barlow_dist),
     "hydra": (forward_hydra, prepare_hydra),
+    "sreg": (forward_sreg, prepare_sreg),
 }
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -27,8 +30,11 @@ DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 def run_epoch(
     forward, model, loss_fn, dataloader, optimizer=None, global_step=0
 ) -> None:
-
-    mode = "valid" if optimizer is None else "train"
+    mode = "train"
+    if optimizer is None:
+        mode = "valid"
+        embeddings = []
+        model.eval()
 
     tracker = MetricTracker(f"{mode}/loss")
     for i, batch in enumerate(dataloader):
@@ -41,9 +47,16 @@ def run_epoch(
         # Backward pass and optimization
         if mode == "train":
             loss.backward()
+            torch.nn.utils.clip_grad_norm(
+                model.parameters(), max_norm=2.0, error_if_nonfinite=False
+            )
             optimizer.step()
             wandb.log({f"{mode}/loss": loss.item()}, step=global_step)
             global_step += 1
+
+        if mode == "valid":
+            emb: torch.Tensor = model(batch["image"].to(DEVICE))
+            embeddings.append(emb.cpu().numpy())
 
         # Log
         tracker(loss.item())
@@ -53,13 +66,14 @@ def run_epoch(
 
     aggregated = tracker.aggregate()
     if mode == "valid":
+        embeddings = np.concatenate(embeddings, axis=0)
+        aggregated["valid/rankme"] = estimate_rank_based_on_singular_values(embeddings)
         wandb.log(aggregated, commit=False)
 
     return aggregated[f"{mode}/loss"], global_step
 
 
 def train(path_to_data_split, model_log_path):
-
     # Define the model and optimizer
     model = DenseNet(
         spatial_dims=3, in_channels=1, out_channels=wandb.config.embedding_size
@@ -68,7 +82,10 @@ def train(path_to_data_split, model_log_path):
     if wandb.config.model == "hydra":
         model = DistanceScaledBTHead(model, emb_size=wandb.config.embedding_size)
         wandb.watch(model, log="all")
-    
+    elif wandb.config.model == "sreg":
+        model = SRegHead(model, wandb.config.embedding_size, wandb.config.crop_size)
+        wandb.watch(model, log="all")
+
     model = model.to(DEVICE)
 
     optimizer = torch.optim.AdamW(model.parameters(), lr=wandb.config.lr)
@@ -88,7 +105,6 @@ def train(path_to_data_split, model_log_path):
     # Start training
     global_step = 0
     for epoch in range(wandb.config.epochs):
-
         wandb.log(
             {"meta/LR": optimizer.param_groups[0]["lr"], "meta/Epoch": epoch},
             commit=False,
