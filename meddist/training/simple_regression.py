@@ -13,11 +13,11 @@ class SRegHead(nn.Module):
 
         self.backbone = backbone
         self.reg = nn.Sequential(
-            nn.Linear(in_channels, in_channels // 2),
-            # nn.BatchNorm1d(in_channels // 2),
+            nn.Dropout(0.25),
+            nn.Linear(in_channels, in_channels * 2),
             nn.ReLU(),
-            nn.Linear(in_channels // 2, 3),
-            nn.ReLU()
+            nn.Linear(in_channels * 2, 3),
+            nn.ReLU(),
         )
 
     def forward(self, x):
@@ -32,7 +32,6 @@ def forward_sreg(model: SRegHead, batch, loss_fn, mode, device):
     bboxes = get_cropped_bboxes(batch["image"], "RandSpatialCropSamples")
     centers = torch.tensor(get_bbox_centers(bboxes), dtype=torch.float32)
 
-
     with torch.autocast(device_type=device):
         pred_centers: torch.Tensor = model.forward_coord(batch["image"].to(device))
 
@@ -45,9 +44,7 @@ def forward_sreg(model: SRegHead, batch, loss_fn, mode, device):
     return loss, {f"{mode}/MeanDiff": mean_diff}
 
 
-
 def prepare_sreg(path_to_data_split):
-
     loss_fn = nn.MSELoss()
 
     train_loader, valid_loader = get_dataloaders(

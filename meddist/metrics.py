@@ -1,5 +1,6 @@
 from abc import abstractmethod
 
+import numpy as np
 import torch
 from monai.metrics import (
     compute_confusion_matrix_metric,
@@ -7,6 +8,32 @@ from monai.metrics import (
     get_confusion_matrix,
 )
 from torch import nn
+
+
+def estimate_rank_based_on_singular_values(matrix) -> float:
+    """
+    Estimates the rank of a matrix without relying on a specific threshold for singular values.
+    See: RankMe: Assessing the downstream performance of pretrained self-supervised representations by their rank
+    https://arxiv.org/pdf/2210.02885.pdf
+
+    Parameters:
+    matrix (ndarray): Input matrix for which rank needs to be estimated of shape (SAMPLES, FEATURES).
+
+    Returns:
+    float: Estimated rank based on the distribution of singular values.
+    """
+
+    matrix[matrix == np.inf] = np.nan
+    matrix[matrix == -np.inf] = np.nan
+    matrix[np.isnan(matrix)] = 0.0
+
+    _, singular_values, _ = np.linalg.svd(matrix)
+    normalized_singular_values = singular_values / np.linalg.norm(
+        singular_values, ord=1
+    )
+    entropy = np.sum(normalized_singular_values * np.log(normalized_singular_values))
+    rank_estimate = np.exp(-entropy)
+    return rank_estimate
 
 
 class Cumulative:
@@ -45,7 +72,6 @@ class RegressionMetricTracker(Cumulative):
         super().__init__()
 
     def aggregate(self):
-
         preds = torch.cat(self.pred_buffer, dim=0)
         labels = torch.cat(self.label_buffer, dim=0)
 
@@ -67,15 +93,10 @@ class ClassificationMetricTracker(Cumulative):
         self.sigmoid = nn.Sigmoid()
 
     def aggregate(self):
-
         preds = torch.cat(self.pred_buffer, dim=0)
         labels = torch.cat(self.label_buffer, dim=0)
 
-        result = {
-            "AUC": compute_roc_auc(
-                preds.flatten(), labels.flatten()
-            )
-        }
+        result = {"AUC": compute_roc_auc(preds.flatten(), labels.flatten())}
 
         pred_binary = (self.sigmoid(preds) > self.threshold).float()
         cm = get_confusion_matrix(pred_binary, labels)
